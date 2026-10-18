@@ -157,3 +157,43 @@ y es legítimo si la app es tuya. Que el código del frontend sea visible no es
 un riesgo: se sirve como archivos estáticos y la seguridad está en la base
 (RLS), no en ocultar el código. Lo que sí conviene definir, antes de dársela a
 otro club, es quién es dueño de la app y de los datos de cada uno.
+
+## Service worker y app instalable (portal-pwa, 2026-10)
+
+`public/sw.js` existe para que el sitio se pueda instalar; no hace que la app
+ande sin conexión. Lo que guarda en el celular (Cache Storage, caché
+`inferiores-<versión>`):
+- **Sí**: `public/vendor/`, `public/fonts/`, `public/icons/`, el escudo, y la
+  portada `/` (sólo se usa si no hay red).
+- **No**: nada de otro origen. Las respuestas de Supabase ni pasan por el
+  service worker, así que no pueden quedar datos de menores en el teléfono.
+  Tampoco `/src/**` ni el CSS: siguen con el `no-cache` de `vercel.json`, y
+  cada deploy llega al recargar.
+
+`tests/serviceWorker.test.js` ata esas reglas. Si alguien corre `npm run
+vendor` o cambia una fuente o un ícono, el test pide actualizar `VERSION` en
+`sw.js`; al activarse, la versión nueva borra los cachés viejos.
+
+Para verificarlo en el celular o en Chrome: DevTools → Application → Cache
+Storage, después de entrar y navegar la app. No tiene que haber nada de
+`supabase.co`.
+
+**Plan de escape.** Si el service worker rompe algo en producción, reemplazar
+el contenido de `public/sw.js` por esto y deployar. Cada celular lo toma en la
+próxima visita, borra sus cachés y se desregistra:
+
+```js
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', (e) => e.waitUntil((async () => {
+  for (const n of await caches.keys()) await caches.delete(n);
+  await self.registration.unregister();
+  for (const c of await self.clients.matchAll()) c.navigate(c.url);
+})()));
+```
+
+Después, sacar la llamada a `registrarServiceWorker()` de `src/ui/main.js`.
+El sitio sigue andando como antes (pierde sólo la instalación).
+
+**iPhone instalado**: guarda la sesión aparte de Safari. Quien entró en Safari
+tiene que volver a entrar en la app instalada, y los links de mail (confirmar
+cuenta, recuperar clave) se abren en Safari.
