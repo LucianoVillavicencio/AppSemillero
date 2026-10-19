@@ -9,9 +9,15 @@ ingreso.** La sección "Alternativa" quedó descartada. Se agregó además, en l
 sección 2, un párrafo sobre los formularios de las familias (el responsable es el
 club y los datos viven en su Drive, no en Semillero).
 
-**Pendiente (no es de esta rama):** la política todavía no menciona las cuentas de
-familia (0057: mail del responsable y "Mis chicos"); conviene sumarlo con la
-spec de esa rama, antes de repartir el link.
+**Cuentas de familia (0057), sumadas en la misma versión `2026-10-18`** para que
+nadie acepte dos veces: la política y los términos describen la cuenta de
+familia (madre, padre o tutor), el mail del responsable que carga el profe desde
+la planilla de inscripciones, el vínculo automático por mail verificado, que la
+familia ve sólo nombre, club y categoría (nunca estadísticas, mediciones ni
+misiones), que los entrenadores ven esos mails, y que la coordinación ve los
+vínculos con el mail oculto y puede darlos de baja (la baja cierra, no borra).
+Cada afirmación sale de `0057_cuentas_familia.sql` y de su spec; si cambia el
+código de esa rama, hay que revisar este texto.
 
 ## Por qué hace falta
 

@@ -40,5 +40,6 @@ quien tenga poder para obligarlo; un profe no alcanza).
 - [x] **Portal del básquet:** política actualizada el 18/10 (`docs/legal/cambios-portal.md`:
       cookies de Google por el calendario y formularios de Google como
       tratamiento del club). `VERSION_LEGAL` = `2026-10-18`: todos reaceptan.
-- [ ] **Cuentas de familia (0057):** sumar a la política el mail del responsable y
-      "Mis chicos" (hoy no los menciona), antes de repartir el link.
+- [x] **Cuentas de familia (0057):** la política y los términos ya las describen
+      (misma versión `2026-10-18`, `docs/legal/cambios-portal.md`). Si cambia el
+      código de esa rama, revisar el texto.
