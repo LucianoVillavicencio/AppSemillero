@@ -108,6 +108,24 @@ Auditoría pre-lanzamiento; plan en `docs/superpowers/plans/2026-09-22-blindaje-
 - **0039:** se puede dar de baja a un profe, y sumar a un chico de otra categoría no abre sus medidas corporales cargadas antes.
 - **Pendiente:** `npx supabase db push` (pide confirmación) y correr en el SQL Editor `tests/verificarCrearJugador.sql`, `verificarPendientesYCodigo.sql`, `verificarIdempotencia.sql` y `verificarBajaProfe.sql`: todos los casos tienen que dar OK. Ya dieron OK en la base local, junto con las verificaciones anteriores. **El cliente de B5 (código de solicitud) tiene que deployarse el mismo día que 0037.**
 
+## Historia del jugador (0056)
+
+Un profe lee el recorrido completo de un chico (todas sus temporadas y categorías) por `historia_del_jugador`, una función `security definer` sin policies nuevas. Aplicada en producción el 2026-10-18.
+
+- **Quién:** entrenador de un plantel donde el chico tiene hoy una pertenencia vigente. El coordinador, la cuenta de un jugador, un profe dado de baja y cualquier otro profe reciben `42501`.
+- **Riesgo aceptado (decisión de Tomás, 16/10):** la ventana de 0039 (auditoría #8) no se aplica a esta lectura. Un profe que suma a su plantel a un chico de otra categoría ve toda su historia, peso y altura incluidos, sin que el profe de antes se entere. Es lo que se pidió para que quien lo recibe sepa cómo viene. Si en el futuro hace falta cerrarlo: pedir que el profe de origen acepte, o una tabla de auditoría de lecturas que mire coordinación.
+- **Verificación:** `tests/verificarHistoria.sql` en la base local (6 casos OK el 2026-10-18). Falta correrlo en el SQL Editor de producción si se quiere dejar constancia; no deja nada (se deshace solo) pero **siembra datos de prueba mientras corre**, así que sólo en local.
+
+## Cuentas de familia (0057)
+
+La familia entra con el mail con el que se inscribió el chico y queda vinculada sola, sin aprobación previa del coordinador (decisión de Tomás, 18/10). Ve nombre y categoría de sus hijos y nada más: no recibe `select` sobre ninguna tabla, sólo `mis_chicos()`; estadísticas, mediciones y misiones quedan fuera por construcción.
+
+- **Riesgo aceptado:** quien inscribe a un chico ajeno con su propio mail queda vinculado a él una vez que el profe importa la inscripción. Lo frenan: el mail de la inscripción es el de la cuenta de Google verificada (formulario con login, prompt 05, opción D2), el profe revisa y tilda cada fila al importar, y el coordinador ve todos los vínculos (con fecha y quién) y puede dar de baja cualquiera (Coordinación → Familias). Hoy lo que ve la familia ya es público en las planillas de la CABB.
+- **Pendiente antes de sumar contenido sensible** (asistencia, prompt 04; aranceles, prompt 09): la spec de ese módulo revisa si el vínculo necesita aprobación del coordinador o un código por chico (`vinculo_familia.via` está para eso).
+- **Excepción a la decisión 1 del prompt 05** (aprobada por Tomás, 18/10): la planilla "Para Semillero" lleva 6 datos sin DNI (apellido, nombre, fecha de nacimiento, categoría, mail, rama) y el profe la baja a mano. Los DNI y documentos no entran a Supabase.
+- **Límites:** un profe que además es padre no se vincula (`vincular_por_mail` rechaza al staff); un mail mal escrito en el formulario no vincula a nadie hasta que el profe lo corrige en la ficha.
+- **Verificación:** `tests/verificarCuentasFamilia.sql` (12 casos OK en local el 2026-10-18; con un agujero metido a propósito falla en 5). `grep service_role`: cero en el repo; no hace falta función de servidor.
+
 ## Datos de menores
 
 La app guarda nombres, fecha de nacimiento, altura y peso de menores (Ley
