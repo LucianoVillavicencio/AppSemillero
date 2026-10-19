@@ -116,6 +116,16 @@ Un profe lee el recorrido completo de un chico (todas sus temporadas y categorí
 - **Riesgo aceptado (decisión de Tomás, 16/10):** la ventana de 0039 (auditoría #8) no se aplica a esta lectura. Un profe que suma a su plantel a un chico de otra categoría ve toda su historia, peso y altura incluidos, sin que el profe de antes se entere. Es lo que se pidió para que quien lo recibe sepa cómo viene. Si en el futuro hace falta cerrarlo: pedir que el profe de origen acepte, o una tabla de auditoría de lecturas que mire coordinación.
 - **Verificación:** `tests/verificarHistoria.sql` en la base local (6 casos OK el 2026-10-18). Falta correrlo en el SQL Editor de producción si se quiere dejar constancia; no deja nada (se deshace solo) pero **siembra datos de prueba mientras corre**, así que sólo en local.
 
+## Cuentas de familia (0057)
+
+La familia entra con el mail con el que se inscribió el chico y queda vinculada sola, sin aprobación previa del coordinador (decisión de Tomás, 18/10). Ve nombre y categoría de sus hijos y nada más: no recibe `select` sobre ninguna tabla, sólo `mis_chicos()`; estadísticas, mediciones y misiones quedan fuera por construcción.
+
+- **Riesgo aceptado:** quien inscribe a un chico ajeno con su propio mail queda vinculado a él una vez que el profe importa la inscripción. Lo frenan: el mail de la inscripción es el de la cuenta de Google verificada (formulario con login, prompt 05, opción D2), el profe revisa y tilda cada fila al importar, y el coordinador ve todos los vínculos (con fecha y quién) y puede dar de baja cualquiera (Coordinación → Familias). Hoy lo que ve la familia ya es público en las planillas de la CABB.
+- **Pendiente antes de sumar contenido sensible** (asistencia, prompt 04; aranceles, prompt 09): la spec de ese módulo revisa si el vínculo necesita aprobación del coordinador o un código por chico (`vinculo_familia.via` está para eso).
+- **Excepción a la decisión 1 del prompt 05** (aprobada por Tomás, 18/10): la planilla "Para Semillero" lleva 6 datos sin DNI (apellido, nombre, fecha de nacimiento, categoría, mail, rama) y el profe la baja a mano. Los DNI y documentos no entran a Supabase.
+- **Límites:** un profe que además es padre no se vincula (`vincular_por_mail` rechaza al staff); un mail mal escrito en el formulario no vincula a nadie hasta que el profe lo corrige en la ficha.
+- **Verificación:** `tests/verificarCuentasFamilia.sql` (12 casos OK en local el 2026-10-18; con un agujero metido a propósito falla en 5). `grep service_role`: cero en el repo; no hace falta función de servidor.
+
 ## Datos de menores
 
 La app guarda nombres, fecha de nacimiento, altura y peso de menores (Ley
