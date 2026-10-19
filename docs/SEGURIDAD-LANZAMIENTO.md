@@ -178,11 +178,13 @@ otro club, es quién es dueño de la app y de los datos de cada uno.
 
 ## Service worker y app instalable (portal-pwa, 2026-10)
 
-`public/sw.js` existe para que el sitio se pueda instalar; no hace que la app
-ande sin conexión. Lo que guarda en el celular (Cache Storage, caché
-`inferiores-<versión>`):
+`public/sw.js` existe para que Semillero se pueda instalar; no hace que la app
+ande sin conexión. **Sólo rige en `/app`** (alcance `/app`, header
+`Service-Worker-Allowed` de `vercel.json`): el portal del básquet en `/` no lo
+registra, no es instalable y sus páginas ni pasan por el service worker. Lo que
+guarda en el celular (Cache Storage, caché `inferiores-<versión>`):
 - **Sí**: `public/vendor/`, `public/fonts/`, `public/icons/`, el escudo, y la
-  portada `/` (sólo se usa si no hay red).
+  página `/app` limpia (sólo se usa si no hay red).
 - **No**: nada de otro origen. Las respuestas de Supabase ni pasan por el
   service worker, así que no pueden quedar datos de menores en el teléfono.
   Tampoco `/src/**` ni el CSS: siguen con el `no-cache` de `vercel.json`, y
