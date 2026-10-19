@@ -37,3 +37,6 @@ quien tenga poder para obligarlo; un profe no alcanza).
 - [ ] Si el club pide cambios a los textos de `/privacidad` o `/terminos`,
       cambiar la fecha en las dos páginas y en `VERSION_LEGAL`
       (`src/data/legal.js`): todos vuelven a aceptar.
+- [ ] **Portal del básquet:** decidir los cambios de `docs/legal/cambios-portal.md`
+      (cookies de Google por el calendario embebido y formularios de Google
+      como tratamiento del club) antes de repartir el link del portal.

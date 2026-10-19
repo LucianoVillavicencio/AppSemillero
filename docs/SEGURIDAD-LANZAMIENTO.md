@@ -217,3 +217,34 @@ El sitio sigue andando como antes (pierde sólo la instalación).
 **iPhone instalado**: guarda la sesión aparte de Safari. Quien entró en Safari
 tiene que volver a entrar en la app instalada, y los links de mail (confirmar
 cuenta, recuperar clave) se abren en Safari.
+
+## Portal público: la única excepción a "anon no tiene nada" (0058)
+
+0027 le sacó a `anon` todo permiso sobre las tablas. **0058 es la primera
+excepción**, aprobada por Tomás el 18/10, para que el portal (`/`) muestre la
+lista de formularios sin sesión. Qué hay y qué no:
+
+- **Tabla `formulario_portal`**: título, texto, enlace, orden y activo. **Ningún
+  dato de jugadores, familias ni miembros.** `anon` no tiene permisos sobre la
+  tabla (`has_table_privilege` da falso; un `GET /rest/v1/formulario_portal` sin
+  sesión devuelve 401).
+- **Función `formularios_publicos(club)`**: es lo único que `anon` puede
+  ejecutar. `security definer`, `search_path` vacío; devuelve sólo título,
+  texto y enlace de las filas **activas** de ese club, hasta 50, en orden. El
+  id del club no es secreto.
+- **Escribe sólo la coordinación del club**, sin borrar; la base sella quién y
+  cuándo. El enlace se limita a Google Forms (`check` de la base + mismo
+  patrón en la app); el texto va escapado en la página.
+- **Riesgo aceptado**: una cuenta de coordinador comprometida podría publicar un
+  enlace malicioso, acotado a dominios de Google. Queda registrado quién lo
+  creó y se oculta con un toque.
+- **El portal no consulta nada si la URL es la vuelta de un login**
+  (`?code=`, `#access_token`): el cliente de Supabase la canjearía en esa
+  página, y la sesión es de `/app`.
+- Contrato: `tests/contratoFormularioPortal.test.js`. Verificación en la base:
+  `tests/verificarFormularioPortal.sql` (8 casos); un cambio que le abra algo
+  más a `anon` hace fallar los dos.
+
+Lo que el club tiene que decidir (cookies de Google por los calendarios
+embebidos y los formularios como tratamiento del club):
+`docs/legal/cambios-portal.md`.
