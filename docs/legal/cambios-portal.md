@@ -1,8 +1,17 @@
 # Cambios legales que pide el portal del básquet (para revisar)
 
-**Estado: propuesta, sin aplicar.** La política de privacidad y los términos
-que ven los usuarios (`public/legal/`) **no se tocaron**. Lo decide Tomás con el
-club, porque cambiarlos tiene una consecuencia (ver "Qué pasa si se cambia").
+**Estado: aplicado el 18/10/2026.** Tomás decidió: el calendario va embebido en
+la página y se actualiza la política ("no usa nadie la página aún, no hay problema
+con cambiar esa política"). Se aplicó el texto de abajo en
+`public/legal/privacidad.html`, y `VERSION_LEGAL` y las dos páginas legales pasaron
+a `2026-10-18`: **todos los usuarios con cuenta aceptan de nuevo en su próximo
+ingreso.** La sección "Alternativa" quedó descartada. Se agregó además, en la
+sección 2, un párrafo sobre los formularios de las familias (el responsable es el
+club y los datos viven en su Drive, no en Semillero).
+
+**Pendiente (no es de esta rama):** la política todavía no menciona las cuentas de
+familia (0057: mail del responsable y "Mis chicos"); conviene sumarlo con la
+spec de esa rama, antes de repartir el link.
 
 ## Por qué hace falta
 

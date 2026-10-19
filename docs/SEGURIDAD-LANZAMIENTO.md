@@ -245,6 +245,7 @@ lista de formularios sin sesión. Qué hay y qué no:
   `tests/verificarFormularioPortal.sql` (8 casos); un cambio que le abra algo
   más a `anon` hace fallar los dos.
 
-Lo que el club tiene que decidir (cookies de Google por los calendarios
-embebidos y los formularios como tratamiento del club):
-`docs/legal/cambios-portal.md`.
+Privacidad (decidido por Tomás el 18/10): el calendario de Google va embebido, así
+que la política dice que Google puede guardar sus cookies y que los formularios
+de las familias son tratamiento del club en Google. `VERSION_LEGAL` subió a
+`2026-10-18` y todos reaceptan. Detalle: `docs/legal/cambios-portal.md`.
