@@ -1,6 +1,6 @@
 # Texto legal para los datos de emergencia (0059)
 
-Para pasarle a la sesión del portal, que tiene los cambios legales sin publicar. **Hay que publicarlo antes de aplicar 0059 en producción o, como mínimo, antes de que un profe cargue la primera emergencia.** Son datos de salud de menores (dato sensible, Ley 25.326, art. 7): consentimiento expreso e informado, finalidad clara y quién accede.
+Para pasarle a la sesión del portal, que tiene los cambios legales sin publicar. **Hay que publicarlo, como mínimo, antes de que un profe cargue la primera emergencia.** Son datos de salud de menores (dato sensible, Ley 25.326, art. 7): consentimiento expreso e informado, finalidad clara y quién accede.
 
 Al publicar: subir `VERSION_LEGAL` en `src/data/legal.js` (obliga a todos a aceptar de nuevo), poner la misma fecha en `privacidad.html` y `terminos.html` (lo compara `tests/contratoLegal.test.js`). Esta rama **no toca** `public/legal/` ni `legal.js`.
 
@@ -41,5 +41,5 @@ Junto a la casilla "Consentimiento de Datos" del formulario, con este texto o un
 Sin esa casilla tildada, la fila **no** pasa a la planilla "Emergencias para Semillero" (ver `google/PRECARGA-2026.md`).
 
 ## Para tener en cuenta
-- Para el plantel 2026 que ya completó el formulario, la casilla "Consentimiento de Datos" del formulario viejo no nombra a Semillero. Antes de cargar sus emergencias hay que decidir con Tomás si alcanza o si se les pide la confirmación de nuevo (por ejemplo, con el link de la reinscripción).
+- Decisión de Tomás (20/10): para el plantel 2026 alcanza el consentimiento del formulario 2026, **sólo en las filas que lo tienen tildado**. Ese filtro lo hace la planilla "Emergencias para Semillero"; una fila sin la casilla tildada nunca llega a Semillero.
 - La lista de profes con acceso cambia sola con las asignaciones: quien se va del club no sigue viendo nada.
