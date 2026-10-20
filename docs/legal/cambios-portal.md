@@ -4,12 +4,12 @@
 la página y se actualiza la política ("no usa nadie la página aún, no hay problema
 con cambiar esa política"). Se aplicó el texto de abajo en
 `public/legal/privacidad.html`, y `VERSION_LEGAL` y las dos páginas legales pasaron
-a `2026-10-18`: **todos los usuarios con cuenta aceptan de nuevo en su próximo
+a `2026-10-19`: **todos los usuarios con cuenta aceptan de nuevo en su próximo
 ingreso.** La sección "Alternativa" quedó descartada. Se agregó además, en la
 sección 2, un párrafo sobre los formularios de las familias (el responsable es el
 club y los datos viven en su Drive, no en Semillero).
 
-**Cuentas de familia (0057), sumadas en la misma versión `2026-10-18`** para que
+**Cuentas de familia (0057), sumadas en la misma versión `2026-10-19`** para que
 nadie acepte dos veces: la política y los términos describen la cuenta de
 familia (madre, padre o tutor), el mail del responsable que carga el profe desde
 la planilla de inscripciones, el vínculo automático por mail verificado, que la
@@ -80,3 +80,33 @@ pero conviene juntarlo con otros cambios legales y avisarle al club antes.
    alternativa de cargar el calendario con un botón?
 2. ¿El club confirma que es responsable del tratamiento de los datos que se
    completan en los formularios de Google? (`docs/legal/acuerdo-datos-club.md`)
+
+## Datos de emergencia (0059), sumados en la misma versión `2026-10-19`
+
+Texto de la sesión de datos conectados (`docs/LEGAL-EMERGENCIAS.md` de su rama). Son
+datos de salud de menores (dato sensible, Ley 25.326, art. 7): por eso la política
+los dice **desde el resumen** y en las secciones 2, 3, 4, 7, 8 y 9. Qué dice:
+- **Qué se guarda** (sólo si la familia los dio en la inscripción): teléfono del
+  adulto, contacto de urgencia, alertas médicas de una lista cerrada, alergias,
+  medicación, una indicación médica especial en texto corto y la obra social. **No**
+  guarda DNI, número de afiliado, grupo sanguíneo ni historias clínicas.
+- **Para qué:** sólo para actuar rápido y avisar a la familia ante un golpe o un
+  malestar; nunca para decidir si un chico juega, se selecciona o se evalúa. Los
+  términos lo repiten como regla de uso.
+- **Quién los ve:** el profe de la categoría (mientras la tenga asignada) y la
+  coordinación. **Ni el jugador ni la familia**, ni siquiera los propios.
+- **No quedan en el teléfono**; se borran solos cuando el chico deja de pertenecer a
+  una categoría; para corregirlos o borrarlos se pide al profe o a la coordinación.
+- **Corregido a propósito** lo que ya habíamos escrito: "la app no guarda teléfono ni
+  diagnósticos" y "los datos de salud no se guardan en la app" pasaron a "de salud
+  sólo guarda los datos de emergencia"; la ficha médica **completa** sigue en el Drive
+  del club, y la app guarda sólo lo que indica la sección 2.
+
+**Pendiente (de Tomás y la sesión de inscripción, no de código):**
+- La casilla de consentimiento del formulario de inscripción tiene que nombrar a
+  Semillero y a estos datos (texto propuesto en `docs/LEGAL-EMERGENCIAS.md`). **Hay que
+  publicarla antes de que un profe cargue la primera emergencia.**
+- Para el plantel 2026 que ya completó el formulario viejo, su casilla "Consentimiento
+  de Datos" no nombra a Semillero: **decidir con Tomás** si alcanza o si se les pide
+  la confirmación de nuevo (por ejemplo con el link de la reinscripción) antes de
+  cargar sus emergencias.

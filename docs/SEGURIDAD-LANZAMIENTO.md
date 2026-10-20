@@ -260,4 +260,4 @@ lista de formularios sin sesión. Qué hay y qué no:
 Privacidad (decidido por Tomás el 18/10): el calendario de Google va embebido, así
 que la política dice que Google puede guardar sus cookies y que los formularios
 de las familias son tratamiento del club en Google. `VERSION_LEGAL` subió a
-`2026-10-18` y todos reaceptan. Detalle: `docs/legal/cambios-portal.md`.
+`2026-10-19` y todos reaceptan (incluye las cuentas de familia y los datos de emergencia de 0059). Detalle: `docs/legal/cambios-portal.md`.

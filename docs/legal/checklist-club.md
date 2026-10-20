@@ -39,7 +39,14 @@ quien tenga poder para obligarlo; un profe no alcanza).
       (`src/data/legal.js`): todos vuelven a aceptar.
 - [x] **Portal del básquet:** política actualizada el 18/10 (`docs/legal/cambios-portal.md`:
       cookies de Google por el calendario y formularios de Google como
-      tratamiento del club). `VERSION_LEGAL` = `2026-10-18`: todos reaceptan.
+      tratamiento del club). `VERSION_LEGAL` = `2026-10-19`: todos reaceptan.
 - [x] **Cuentas de familia (0057):** la política y los términos ya las describen
-      (misma versión `2026-10-18`, `docs/legal/cambios-portal.md`). Si cambia el
+      (misma versión `2026-10-19`, `docs/legal/cambios-portal.md`). Si cambia el
       código de esa rama, revisar el texto.
+- [x] **Datos de emergencia (0059):** la política y los términos ya los describen
+      (misma versión `2026-10-19`, `docs/legal/cambios-portal.md`).
+- [ ] **Consentimiento para los datos de emergencia (Tomás + inscripción):** la
+      casilla del formulario de inscripción tiene que nombrar a Semillero y a estos
+      datos, y publicarse **antes** de que un profe cargue la primera emergencia. Para
+      el plantel 2026 que completó el formulario viejo, decidir si alcanza o se les
+      pide confirmar de nuevo.
