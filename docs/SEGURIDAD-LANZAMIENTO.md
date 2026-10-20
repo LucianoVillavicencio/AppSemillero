@@ -175,3 +175,89 @@ y es legítimo si la app es tuya. Que el código del frontend sea visible no es
 un riesgo: se sirve como archivos estáticos y la seguridad está en la base
 (RLS), no en ocultar el código. Lo que sí conviene definir, antes de dársela a
 otro club, es quién es dueño de la app y de los datos de cada uno.
+
+## Service worker y app instalable (portal-pwa, 2026-10)
+
+`public/sw.js` existe para que Semillero se pueda instalar; no hace que la app
+ande sin conexión. **Sólo rige en `/app`** (alcance `/app`, header
+`Service-Worker-Allowed` de `vercel.json`): el portal del básquet en `/` no lo
+registra, no es instalable y sus páginas ni pasan por el service worker. Lo que
+guarda en el celular (Cache Storage, caché `inferiores-<versión>`):
+- **Sí**: `public/vendor/`, `public/fonts/`, `public/icons/`, el escudo, y la
+  página `/app` limpia (sólo se usa si no hay red).
+- **No**: nada de otro origen. Las respuestas de Supabase ni pasan por el
+  service worker, así que no pueden quedar datos de menores en el teléfono.
+  Tampoco `/src/**` ni el CSS: siguen con el `no-cache` de `vercel.json`, y
+  cada deploy llega al recargar.
+
+`tests/serviceWorker.test.js` ata esas reglas. Si alguien corre `npm run
+vendor` o cambia una fuente o un ícono, el test pide actualizar `VERSION` en
+`sw.js`; al activarse, la versión nueva borra los cachés viejos.
+
+Para verificarlo en el celular o en Chrome: DevTools → Application → Cache
+Storage, después de entrar y navegar la app. No tiene que haber nada de
+`supabase.co`.
+
+**Plan de escape.** Si el service worker rompe algo en producción, reemplazar
+el contenido de `public/sw.js` por esto y deployar. Cada celular lo toma en la
+próxima visita, borra sus cachés y se desregistra:
+
+```js
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', (e) => e.waitUntil((async () => {
+  for (const n of await caches.keys()) await caches.delete(n);
+  await self.registration.unregister();
+  for (const c of await self.clients.matchAll()) c.navigate(c.url);
+})()));
+```
+
+Después, sacar la llamada a `registrarServiceWorker()` de `src/ui/main.js`.
+El sitio sigue andando como antes (pierde sólo la instalación).
+
+**iPhone instalado**: guarda la sesión aparte de Safari. Quien entró en Safari
+tiene que volver a entrar en la app instalada, y los links de mail (confirmar
+cuenta, recuperar clave) se abren en Safari.
+
+## Portal público: la única excepción a "anon no tiene nada" (0058)
+
+0027 le sacó a `anon` todo permiso sobre las tablas. **0058 es la primera
+excepción**, aprobada por Tomás el 18/10, para que el portal (`/`) muestre la
+lista de formularios sin sesión. Qué hay y qué no:
+
+- **Tabla `formulario_portal`**: título, texto, enlace, orden y activo. **Ningún
+  dato de jugadores, familias ni miembros.** `anon` no tiene permisos sobre la
+  tabla (`has_table_privilege` da falso; un `GET /rest/v1/formulario_portal` sin
+  sesión devuelve 401).
+- **Función `formularios_publicos(club)`**: es lo único que `anon` puede
+  ejecutar. `security definer`, `search_path` vacío; devuelve sólo título,
+  texto, enlace y **destino** (0061: consultas o colaboradores, o nada) de las
+  filas **activas** de ese club, hasta 50, en orden. El id del club no es
+  secreto. `anon` no tiene permisos sobre la columna `destino` de la tabla.
+- **Escribe sólo la coordinación del club**, sin borrar; la base sella quién y
+  cuándo. El enlace se limita a Google Forms (`check` de la base + mismo
+  patrón en la app); el texto va escapado en la página.
+- **Riesgo aceptado**: una cuenta de coordinador comprometida podría publicar un
+  enlace malicioso, acotado a dominios de Google. Queda registrado quién lo
+  creó y se oculta con un toque.
+- **El portal no consulta nada si la URL es la vuelta de un login**
+  (`?code=`, `#access_token`): el cliente de Supabase la canjearía en esa
+  página, y la sesión es de `/app`.
+- **`/consultas`** (la dirección del QR impreso, `public/consultas.html`): sin
+  sesión; lee sólo `formularios_publicos`, redirige únicamente a un enlace que
+  pasó la validación de Google Forms, y no consulta nada si la URL es la vuelta
+  de un login. Se sirve sin caché y `noindex`.
+- **Logos de sponsors**: sólo archivos propios de `public/sponsors/` (el CSP
+  `img-src 'self'` no deja cargar imágenes de otro sitio); la ruta y el enlace
+  se validan (`sponsorsValidos`).
+- Contrato: `tests/contratoFormularioPortal.test.js`.
+  `tests/contratoDestinoFormulario.test.js` ata 0061: un solo formulario por
+  destino y club, y anon sigue ejecutando una sola función.
+  **Orden de despliegue de 0061:** aplicarla antes de publicar el código que la
+  usa (el panel nuevo pide la columna) y después de 0059 y 0060. Verificación en la base:
+  `tests/verificarFormularioPortal.sql` (8 casos); un cambio que le abra algo
+  más a `anon` hace fallar los dos.
+
+Privacidad (decidido por Tomás el 18/10): el calendario de Google va embebido, así
+que la política dice que Google puede guardar sus cookies y que los formularios
+de las familias son tratamiento del club en Google. `VERSION_LEGAL` subió a
+`2026-10-19` y todos reaceptan (incluye las cuentas de familia y los datos de emergencia de 0059). Detalle: `docs/legal/cambios-portal.md`.
