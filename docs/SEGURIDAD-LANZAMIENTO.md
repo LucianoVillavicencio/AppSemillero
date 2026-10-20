@@ -230,8 +230,9 @@ lista de formularios sin sesión. Qué hay y qué no:
   sesión devuelve 401).
 - **Función `formularios_publicos(club)`**: es lo único que `anon` puede
   ejecutar. `security definer`, `search_path` vacío; devuelve sólo título,
-  texto y enlace de las filas **activas** de ese club, hasta 50, en orden. El
-  id del club no es secreto.
+  texto, enlace y **destino** (0061: consultas o colaboradores, o nada) de las
+  filas **activas** de ese club, hasta 50, en orden. El id del club no es
+  secreto. `anon` no tiene permisos sobre la columna `destino` de la tabla.
 - **Escribe sólo la coordinación del club**, sin borrar; la base sella quién y
   cuándo. El enlace se limita a Google Forms (`check` de la base + mismo
   patrón en la app); el texto va escapado en la página.
@@ -241,7 +242,18 @@ lista de formularios sin sesión. Qué hay y qué no:
 - **El portal no consulta nada si la URL es la vuelta de un login**
   (`?code=`, `#access_token`): el cliente de Supabase la canjearía en esa
   página, y la sesión es de `/app`.
-- Contrato: `tests/contratoFormularioPortal.test.js`. Verificación en la base:
+- **`/consultas`** (la dirección del QR impreso, `public/consultas.html`): sin
+  sesión; lee sólo `formularios_publicos`, redirige únicamente a un enlace que
+  pasó la validación de Google Forms, y no consulta nada si la URL es la vuelta
+  de un login. Se sirve sin caché y `noindex`.
+- **Logos de sponsors**: sólo archivos propios de `public/sponsors/` (el CSP
+  `img-src 'self'` no deja cargar imágenes de otro sitio); la ruta y el enlace
+  se validan (`sponsorsValidos`).
+- Contrato: `tests/contratoFormularioPortal.test.js`.
+  `tests/contratoDestinoFormulario.test.js` ata 0061: un solo formulario por
+  destino y club, y anon sigue ejecutando una sola función.
+  **Orden de despliegue de 0061:** aplicarla antes de publicar el código que la
+  usa (el panel nuevo pide la columna) y después de 0059 y 0060. Verificación en la base:
   `tests/verificarFormularioPortal.sql` (8 casos); un cambio que le abra algo
   más a `anon` hace fallar los dos.
 
