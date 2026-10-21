@@ -63,6 +63,12 @@ El ritmo del sitio oficial: hero negro (con la foto del club si `PORTAL.foto` ex
 
 `vercel.json`: rewrites `/noticias`, `/categorias`, `/calendario`, `/ayuda` a sus `.html`, con `no-store` como el portal. `sitemap.xml` con las páginas nuevas. Cada página con su `<title>`, `description` y Open Graph. El detalle de una noticia comparte el OG genérico (sin servidor no hay OG por noticia).
 
+## Cómo se verifica (decidido con el usuario)
+
+- Todo local: repo git local, sin remoto, sin push y sin `db push`.
+- Noticias se prueba **sólo con tests unitarios y de contrato** (lógica pura, mappers, contrato SQL↔JS, HTML generado). No hay Supabase local. La prueba punta a punta queda para cuando se aplique 0064 en la base real, con `npm run backup` antes.
+- Las páginas se miran en el navegador con el servidor de `.claude/launch.json`. Sin la migración, la sección de noticias tiene que quedar oculta, y eso también se verifica.
+
 ## Lo que queda para quien construye
 
 Medidas exactas, el corte del menú, los textos de botón dentro de lo ya escrito en el portal, el orden de los tests y si la grilla de noticias usa 1/2/3 columnas por corte de `layout.css`.
