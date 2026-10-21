@@ -52,20 +52,10 @@ test('el encabezado: la marca lleva al inicio, la navegación de las páginas y 
   assert.match(pagina, /<div class="portal-acc-barra" id="portal-acc-barra" hidden><\/div>/, 'la barra arranca oculta');
 });
 
-test('Ayuda no ocupa lugar en la página: es una hoja (<dialog>) con la X, que abre todo link a #ayuda', () => {
-  assert.doesNotMatch(pagina, /<section [^>]*id="ayuda"/);
-  const hoja = pagina.match(/<dialog class="portal-hoja" id="ayuda" aria-labelledby="t-ayuda">[\s\S]*?<\/dialog>/)?.[0];
-  assert.ok(hoja, 'falta la hoja de Ayuda');
-  assert.match(hoja, /<h2 id="t-ayuda">Preguntas frecuentes<\/h2>/);
-  assert.match(hoja, /<button type="button" class="portal-hoja-x" data-cerrar-ayuda aria-label="Cerrar la ayuda">/);
-  assert.match(hoja, /id="portal-ayuda-lista"/);
-  const desde = portal.indexOf('function iniciarAyuda()');
-  const cuerpo = portal.slice(desde, portal.indexOf('\n}\n', desde));
-  assert.match(cuerpo, /closest\('a\[href="#ayuda"\]'\)/);
-  assert.match(cuerpo, /hoja\.showModal\(\)/, 'showModal: foco atrapado y Escape');
-  assert.match(cuerpo, /ev\.target === hoja/, 'tocar afuera la cierra');
-  assert.match(cuerpo, /\[data-cerrar-ayuda\]/);
-  assert.match(portal, /iniciarAyuda\(\);/);
+test('Ayuda es una página (/ayuda): el inicio no tiene la hoja ni la abre, y nada apunta a #ayuda', () => {
+  assert.doesNotMatch(pagina, /<dialog/);
+  assert.doesNotMatch(portal, /iniciarAyuda|showModal/);
+  assert.doesNotMatch(portal, /href="#ayuda"|'#ayuda'/);
 });
 
 test('el coordinador aparece una sola vez: al final de las preguntas frecuentes', () => {
@@ -281,7 +271,7 @@ test('categoría del año: el nombre, sus años y su horario; sin horario, lo di
 test('categoría del año: sin ninguna, lo dice y manda a las preguntas frecuentes, no al coordinador', () => {
   const out = htmlCategoriaDelAnio(2021, []).toString();
   assert.match(out, /Para chicos nacidos en 2021 todavía no hay categoría\./);
-  assert.match(out, /<a href="#ayuda">/);
+  assert.match(out, /<a href="\/ayuda">/);
   assert.doesNotMatch(out, /wa\.me|coordinador/);
 });
 
@@ -388,7 +378,7 @@ test('ayuda: "me equivoqué en un dato" es volver a mandarlo (el Tablero toma la
 test('ayuda: "¿cómo inscribo?" no manda a un botón apagado', () => {
   assert.match(htmlAyuda({ inscripcionAbierta: true }).toString(), /Tocá <b>Inscribir a mi hijo o hija<\/b>/);
   assert.match(htmlAyuda({ consultasAbierto: true, temporada: 2027 }).toString(), /La inscripción 2027 todavía no abrió\. Mientras tanto, tocá <b>Quiero jugar en Newell's<\/b>/);
-  assert.match(htmlAyuda({}).toString(), /Cuando abra, el botón se habilita arriba de todo/);
+  assert.match(htmlAyuda({}).toString(), /Cuando abra, el botón aparece en el inicio y en la barra de botones/);
   assert.doesNotMatch(htmlAyuda({ contacto: 'javascript:alert(1)' }).toString(), /javascript|No encontraste/);
 });
 

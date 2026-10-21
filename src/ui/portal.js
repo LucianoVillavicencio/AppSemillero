@@ -53,6 +53,8 @@ const botonExterno = (url, texto, clase = 'btn') => html`<a class="${clase}" hre
  */
 const botonCerrado = (texto, clase = 'btn') => html`<button type="button" class="${clase}" disabled aria-disabled="true">${texto}</button>`;
 
+const abierto = (f) => Boolean(f && enlaceFormulario(f.enlace));
+
 /**
  * Una de las dos tarjetas de arriba: ícono, título y una línea; toda la
  * tarjeta es el botón. Sin formulario activo se ve igual de maciza, con la
@@ -200,7 +202,7 @@ export function htmlBuscador(anio, { min, max }) {
  */
 export function htmlCategoriaDelAnio(anio, categorias) {
   if (!categorias.length) {
-    return html`<p class="portal-cat-nada">Para chicos nacidos en ${anio} todavía no hay categoría. <a href="#ayuda">¿Dudas? Mirá las preguntas frecuentes</a>.</p>`;
+    return html`<p class="portal-cat-nada">Para chicos nacidos en ${anio} todavía no hay categoría. <a href="/ayuda">¿Dudas? Mirá las preguntas frecuentes</a>.</p>`;
   }
   return html`${categorias.map(({ nombre, rama, anios, horario }) => html`<div class="portal-cat-res">
     <div class="portal-cat-nombre"><b>${nombre}</b>${rama && html`<span>${rama}</span>`}<small>Nacidos ${anios}</small></div>
@@ -222,14 +224,14 @@ export function htmlAyuda({ inscripcionAbierta = false, consultasAbierto = false
   const coordinador = enlaceContacto(contacto);
   const pregunta = (titulo, respuesta) => html`<details class="portal-faq"><summary>${titulo}</summary><div class="portal-faq-r">${respuesta}</div></details>`;
   const comoInscribir = inscripcionAbierta
-    ? html`<p>Tocá <b>Inscribir a mi hijo o hija</b>, arriba de todo. Se abre un formulario de Google: completalo desde el celular. Tené a mano el DNI del chico o la chica y el tuyo.</p>`
+    ? html`<p>Tocá <b>Inscribir a mi hijo o hija</b>: está arriba de todo en el inicio y en la barra de botones de cada página. Se abre un formulario de Google: completalo desde el celular. Tené a mano el DNI del chico o la chica y el tuyo.</p>`
     : html`<p>La inscripción${temporada ? html` ${temporada}` : ''} todavía no abrió. ${consultasAbierto
-      ? html`Mientras tanto, tocá <b>Quiero jugar en Newell's</b>, arriba de todo: dejás tus datos y te contactamos para que venga a probar.`
-      : html`Cuando abra, el botón se habilita arriba de todo.`}</p>`;
+      ? html`Mientras tanto, tocá <b>Quiero jugar en Newell's</b> (en el inicio o en la barra de botones): dejás tus datos y te contactamos para que venga a probar.`
+      : html`Cuando abra, el botón aparece en el inicio y en la barra de botones de cada página.`}</p>`;
   const alCoordinador = coordinador ? 'escribile al coordinador (el botón de acá abajo)' : 'escribile al coordinador';
   // Las preguntas van en la voz del padre y con sujeto: así las busca con la vista.
   return html`${pregunta('¿Cómo inscribo a mi hijo o hija?', comoInscribir)}
-    ${pregunta('¿Cómo pago la cuota o mando el comprobante?', html`<p>${a ? html`Transferí al alias <b>${a.alias}</b> (con <b>Copiar</b>, arriba de todo, lo pegás en tu banco). ` : ''}Después tocá <b>Enviar comprobante</b> y subí la foto o la captura de la transferencia. Si ese botón está apagado, es que ahora no hay nada para pagar.</p>`)}
+    ${pregunta('¿Cómo pago la cuota o mando el comprobante?', html`<p>${a ? html`Transferí al alias <b>${a.alias}</b> (con <b>Copiar</b>, en el inicio o acá abajo, lo pegás en tu banco). ` : ''}Después tocá <b>Enviar comprobante</b> y subí la foto o la captura de la transferencia. Si ese botón está apagado, es que ahora no hay nada para pagar.</p>`)}
     ${pregunta('Me pide iniciar sesión con Google, ¿qué hago?', html`<p>La inscripción y el comprobante la piden porque se suben fotos (los DNI, la transferencia). Si no tenés Gmail, creá una cuenta de Google con el mail que ya usás, sin abrir uno nuevo:</p>
       <ol class="portal-faq-pasos">
         <li>Entrá a <a href="https://accounts.google.com/signup" target="_blank" rel="noopener">accounts.google.com</a> y tocá <b>Crear cuenta</b> → <b>Para uso personal</b>.</li>
@@ -237,14 +239,29 @@ export function htmlAyuda({ inscripcionAbierta = false, consultasAbierto = false
         <li>Pegá el código que te llega a ese mail y elegí una contraseña.</li>
       </ol>
       <p>Si no podés, ${alCoordinador} y te ayuda.</p>`)}
-    ${pregunta('¿En qué categoría juega mi hijo o hija?', html`<p>Va por el año de nacimiento, como lo arma la CABB. En <a href="#categorias">¿En qué categoría juega?</a> elegís el año y te dice la categoría y los horarios.</p>`)}
+    ${pregunta('¿En qué categoría juega mi hijo o hija?', html`<p>Va por el año de nacimiento, como lo arma la CABB. En <a href="/categorias">¿En qué categoría juega?</a> elegís el año y te dice la categoría y los horarios.</p>`)}
     ${pregunta('Me equivoqué en un dato del formulario, ¿qué hago?', html`<p>Volvé a mandar el formulario con el dato bien: tomamos siempre el último que mandaste. Si te equivocaste en el DNI, ${alCoordinador.replace('escribile', 'avisale')}.</p>`)}
-    ${pregunta('¿Dónde y cuándo entrena mi hijo o hija?', html`<p>Los días y los horarios dependen de la categoría: los ves en <a href="#categorias">¿En qué categoría juega?</a>.${s ? html` Se entrena en el <b>${s.nombre}</b>${s.direccion && html` (${s.direccion})`}.` : ''}</p>${s?.mapa && botonExterno(s.mapa, 'Cómo llegar', 'btn sec chico')}`)}
+    ${pregunta('¿Dónde y cuándo entrena mi hijo o hija?', html`<p>Los días y los horarios dependen de la categoría: los ves en <a href="/categorias">¿En qué categoría juega?</a>.${s ? html` Se entrena en el <b>${s.nombre}</b>${s.direccion && html` (${s.direccion})`}.` : ''}</p>${s?.mapa && botonExterno(s.mapa, 'Cómo llegar', 'btn sec chico')}`)}
     ${coordinador && html`<div class="portal-faq-fin">
       <b>¿No encontraste tu respuesta?</b>
       <span>Escribile al coordinador y te ayuda.</span>
       ${botonExterno(coordinador, coordinador.startsWith('mailto:') ? 'Escribirle por mail' : 'Escribirle por WhatsApp')}
     </div>`}`;
+}
+
+/**
+ * La sede y el alias, abajo de las preguntas frecuentes de /ayuda. El
+ * coordinador NO va acá: sale una sola vez, al final de htmlAyuda.
+ */
+export function htmlContacto({ sede = null, alias = null } = {}) {
+  const s = sedeValida(sede);
+  const a = htmlAlias(alias);
+  if (!s && !a.toString()) return html``;
+  return html`${s && html`<div class="portal-contacto-sede">
+      <div class="portal-st">Dónde se entrena</div>
+      <b>${s.nombre}</b>${s.direccion && html`<p>${s.direccion}</p>`}
+      ${s.mapa && botonExterno(s.mapa, 'Cómo llegar', 'btn sec chico')}
+    </div>`}${a}`;
 }
 
 export function htmlFoto(foto) {
@@ -490,36 +507,27 @@ function iniciarBuscador(temporada) {
   pintar();
 }
 
-/* ---------- Ayuda: una hoja encima de la página ---------- */
-
-/**
- * Todo link a #ayuda (el botón del encabezado, el atajo, "¿Dudas?") abre la
- * hoja en vez de saltar a una sección. <dialog> con showModal da el foco
- * atrapado, Escape y la vuelta del foco al botón que la abrió; acá se suman
- * la X y el toque afuera (el fondo es el propio <dialog>, el contenido está
- * en .portal-hoja-cuerpo). Un link de adentro a otra parte de la página
- * (#categorias) cierra la hoja y deja que el navegador baje hasta ahí.
- */
-function iniciarAyuda() {
-  const hoja = $('ayuda');
-  if (typeof hoja.showModal !== 'function') return; // Sin <dialog>: queda la página sin la hoja, nada se rompe.
-  document.addEventListener('click', (ev) => {
-    if (!ev.target.closest('a[href="#ayuda"]')) return;
-    ev.preventDefault();
-    if (!hoja.open) hoja.showModal();
-  });
-  hoja.addEventListener('click', (ev) => {
-    if (ev.target === hoja || ev.target.closest('[data-cerrar-ayuda]') || ev.target.closest('a[href^="#"]')) hoja.close();
-  });
-  if (window.location.hash === '#ayuda') hoja.showModal();
-}
-
 /* ---------- Armado de la página ---------- */
 
 function mostrar(id, contenido, contenedor = `portal-${id}`) {
   const texto = contenido.toString();
   $(contenedor).innerHTML = texto;
   $(id).hidden = !texto.trim();
+}
+
+/** /ayuda: las preguntas (que cambian con lo que esté abierto) y la sede con el alias. */
+export async function iniciarPaginaAyuda() {
+  const pintar = ({ inscripcion = null, consultas = null } = {}) => {
+    $('portal-ayuda-lista').innerHTML = htmlAyuda({
+      inscripcionAbierta: abierto(inscripcion), consultasAbierto: abierto(consultas),
+      temporada: PORTAL.temporada, alias: PORTAL.alias, sede: PORTAL.sede, contacto: PORTAL.contacto,
+    });
+  };
+  // Hasta que responda la base, las respuestas suponen todo cerrado: nunca mandan a un botón apagado.
+  pintar();
+  mostrar('contacto', htmlContacto({ sede: PORTAL.sede, alias: PORTAL.alias }));
+  const datos = await iniciarMarco();
+  if (datos) pintar(datos);
 }
 
 export async function iniciarPortal() {
@@ -534,17 +542,11 @@ export async function iniciarPortal() {
 
   // Hasta que responda la base, todo cerrado: nunca un botón a un formulario que quizá ya no está.
   const pintarFormularios = ({ inscripcion = null, comprobante = null, consultas = null, colaboradores = null, recaudacion = null } = {}) => {
-    const abierto = (f) => Boolean(f && enlaceFormulario(f.enlace));
     $('portal-heroe').innerHTML = htmlHeroe({ inscripcion, consultas, comprobante, temporada: PORTAL.temporada, alias: PORTAL.alias });
     $('portal-recaudacion').innerHTML = htmlRecaudacion(recaudacion);
     $('portal-colaborar').innerHTML = htmlColaborar(colaboradores);
-    $('portal-ayuda-lista').innerHTML = htmlAyuda({
-      inscripcionAbierta: abierto(inscripcion), consultasAbierto: abierto(consultas),
-      temporada: PORTAL.temporada, alias: PORTAL.alias, sede: PORTAL.sede, contacto: PORTAL.contacto,
-    });
   };
   pintarFormularios();
-  iniciarAyuda();
 
   const calendarios = calendariosActivos(PORTAL.agenda);
   $('calendario').hidden = !calendarios.length;
@@ -553,7 +555,7 @@ export async function iniciarPortal() {
     !$('calendario').hidden && { clave: 'calendario', texto: 'Calendario', href: '#calendario' },
     !$('categorias').hidden && { clave: 'categorias', texto: 'Categorías', href: '#categorias' },
     { clave: 'colaborar', texto: 'Sumate', href: '#colaborar' },
-    { clave: 'ayuda', texto: 'Ayuda', href: '#ayuda' },
+    { clave: 'ayuda', texto: 'Ayuda', href: '/ayuda' },
   ].filter(Boolean));
 
   esconderBarraMientrasSeVea($('portal-heroe'));
