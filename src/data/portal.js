@@ -50,7 +50,8 @@ export const PORTAL = Object.freeze({
   // Horarios: descripción del formulario "Quiero jugar en Newell's" (temporada
   // 2026). Newell's no tiene Escuelita ni femeninos de inferiores: la única
   // femenina es Primera. Las dos Primeras no figuran en ningún formulario y van
-  // sin horario hasta que el club lo pase.
+  // sin horario hasta que el club lo pase. `detalle` opcional: un texto que
+  // pase el club sobre esa categoría (se muestra en /categorias). Sin él, nada.
   categorias: Object.freeze([
     Object.freeze({ grupo: 'U9', rama: 'Mixto', horario: 'Mar 18 a 19 h (Estadio Cubierto) · Jue 18 a 19 h (Playón Deportivo)' }),
     Object.freeze({ grupo: 'U11', rama: 'Mixto', horario: 'Mar 19 a 20 h (Estadio Cubierto) · Jue 19 a 20 h (Playón Deportivo)' }),
@@ -170,6 +171,29 @@ export function categoriasDelAnio(lista, temporada, anio) {
     return a && Number.isInteger(anio) && (a.viejo == null || anio >= a.viejo) && (a.nuevo == null || anio <= a.nuevo);
   });
   return categoriasDelPortal(leTocan, temporada);
+}
+
+/** "Primera Femenino" → "primera-femenino": el ancla de una categoría en /categorias. */
+export function slugCategoria(texto) {
+  return String(texto ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
+
+/**
+ * Las categorías de /categorias: lo de categoriasDelPortal (mismo orden, mismo
+ * filtro) más el rótulo, el ancla y el detalle que haya pasado el club. La rama
+ * va en el rótulo y en el ancla sólo si dos categorías se llaman igual (las
+ * dos Primeras): "U13" sola se entiende, "Primera" sola no.
+ */
+export function categoriasConDetalle(lista, temporada) {
+  const crudas = (Array.isArray(lista) ? lista : []).filter((c) => aniosDeCategoria(c?.grupo, temporada));
+  const base = categoriasDelPortal(crudas, temporada);
+  const veces = new Map();
+  for (const c of base) veces.set(c.nombre, (veces.get(c.nombre) ?? 0) + 1);
+  return base.map((c, i) => {
+    const rotulo = veces.get(c.nombre) > 1 && c.rama ? `${c.nombre} ${c.rama}` : c.nombre;
+    return { ...c, rotulo, ancla: slugCategoria(rotulo), detalle: texto(crudas[i].detalle) || null };
+  });
 }
 
 const MAPA = /^https:\/\/(maps\.app\.goo\.gl|goo\.gl\/maps|www\.google\.com\/maps|maps\.google\.com)\/[^\s"<>]*$/;

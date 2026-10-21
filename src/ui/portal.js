@@ -3,7 +3,7 @@ import { $ } from './dom.js';
 import { eventosDelMes } from '../data/repositorio.js';
 import {
   PORTAL, enlaceFormulario, enlaceContacto, sponsorsValidos, calendariosActivos, categoriasDelPortal,
-  categoriasDelAnio, sedeValida, aliasValido, fotoValida,
+  categoriasDelAnio, categoriasConDetalle, sedeValida, aliasValido, fotoValida,
 } from '../data/portal.js';
 import { temporadaComoAnio } from '../data/categorias.js';
 import { accionesPrincipales } from '../data/formulariosPortal.js';
@@ -204,12 +204,40 @@ export function htmlCategoriaDelAnio(anio, categorias) {
   if (!categorias.length) {
     return html`<p class="portal-cat-nada">Para chicos nacidos en ${anio} todavía no hay categoría. <a href="/ayuda">¿Dudas? Mirá las preguntas frecuentes</a>.</p>`;
   }
-  return html`${categorias.map(({ nombre, rama, anios, horario }) => html`<div class="portal-cat-res">
+  return html`${categorias.map(({ nombre, rama, anios, horario, href }) => html`<div class="portal-cat-res">
     <div class="portal-cat-nombre"><b>${nombre}</b>${rama && html`<span>${rama}</span>`}<small>Nacidos ${anios}</small></div>
     ${horario
       ? html`<ul class="portal-cat-hora">${horario.split(' · ').map((h) => html`<li>${h}</li>`)}</ul>`
       : html`<p class="portal-cat-sin">Horario a confirmar.</p>`}
+    ${href && html`<a class="portal-cat-ir" href="${href}">Ver horarios y sede de ${nombre}</a>`}
   </div>`)}`;
+}
+
+/** Los atajos a cada categoría de /categorias. Con menos de dos no vale la fila. */
+export function htmlIndiceCategorias(categorias) {
+  if (categorias.length < 2) return html``;
+  return html`${categorias.map((c) => html`<a href="#${c.ancla}">${c.rotulo}</a>`)}`;
+}
+
+/**
+ * Una categoría entera en /categorias: años, cada horario (día, hora y lugar,
+ * como los pasó el club) y la sede. Sin horario, "a confirmar": nunca uno
+ * inventado. El detalle, sólo si el club lo pasó.
+ */
+export function htmlCategoriaDetalle({ rotulo, rama, anios, horario, detalle, ancla }, sede) {
+  const s = sedeValida(sede);
+  return html`<section class="portal-cat-sec" id="${ancla}" aria-labelledby="t-${ancla}">
+    ${rama && html`<div class="portal-st">${rama}</div>`}
+    <h2 id="t-${ancla}">${rotulo}</h2>
+    <dl class="portal-cat-datos">
+      <div><dt>Nacidos</dt><dd>${anios}</dd></div>
+      <div><dt>Entrenamientos</dt><dd>${horario
+        ? html`<ul>${horario.split(' · ').map((h) => html`<li>${h}</li>`)}</ul>`
+        : html`<span class="portal-cat-confirmar">Horario a confirmar.</span>`}</dd></div>
+      ${s && html`<div><dt>Dónde</dt><dd>${s.nombre}${s.mapa && html` · <a href="${s.mapa}" target="_blank" rel="noopener">Cómo llegar</a>`}</dd></div>`}
+    </dl>
+    ${detalle && html`<p class="portal-cat-detalle">${detalle}</p>`}
+  </section>`;
 }
 
 /**
@@ -485,18 +513,25 @@ function iniciarCalendario(calendarios) {
  * a uno. Los topes cubren de Primera a unos años más chicos que la U9, para
  * que quien busca a un nene de 4 vea que todavía no hay categoría.
  */
-function iniciarBuscador(temporada) {
+function iniciarBuscador(temporada, hrefDe = null) {
   const rango = { min: temporada - 30, max: temporada - 4 };
   let anio = temporada - 13;
   const buscador = $('portal-buscador');
   buscador.innerHTML = htmlBuscador(anio, rango);
+  // Para el link "Ver horarios y sede": el ancla sale de la lista completa,
+  // así las dos Primeras llevan cada una a la suya.
+  const detalle = categoriasConDetalle(PORTAL.categorias, PORTAL.temporada);
+  const conEnlace = (cats) => cats.map((c) => {
+    const d = detalle.find((x) => x.nombre === c.nombre && x.rama === c.rama);
+    return { ...c, href: d && hrefDe ? hrefDe(d) : null };
+  });
   // Se cambian el año, los topes y el resultado, no el selector entero: así el
   // foco queda en el botón y el resultado (aria-live) se anuncia al cambiar.
   const pintar = () => {
     $('portal-anio').textContent = anio;
     buscador.querySelector('[data-anio="-1"]').disabled = anio <= rango.min;
     buscador.querySelector('[data-anio="1"]').disabled = anio >= rango.max;
-    $('portal-cat-res').innerHTML = htmlCategoriaDelAnio(anio, categoriasDelAnio(PORTAL.categorias, temporada, anio));
+    $('portal-cat-res').innerHTML = htmlCategoriaDelAnio(anio, conEnlace(categoriasDelAnio(PORTAL.categorias, temporada, anio)));
   };
   buscador.addEventListener('click', (ev) => {
     const b = ev.target.closest('[data-anio]');
@@ -528,6 +563,22 @@ export async function iniciarPaginaAyuda() {
   mostrar('contacto', htmlContacto({ sede: PORTAL.sede, alias: PORTAL.alias }));
   const datos = await iniciarMarco();
   if (datos) pintar(datos);
+}
+
+/** /categorias: el buscador, los atajos y una sección por categoría. */
+export async function iniciarPaginaCategorias() {
+  const temporada = temporadaComoAnio(PORTAL.temporada);
+  const categorias = temporada ? categoriasConDetalle(PORTAL.categorias, PORTAL.temporada) : [];
+  if (temporada) $('t-categorias-temp').textContent = ` ${temporada}`;
+  $('buscar').hidden = !categorias.length;
+  if (categorias.length) {
+    iniciarBuscador(temporada, (c) => `#${c.ancla}`);
+    $('portal-cat-indice').innerHTML = htmlIndiceCategorias(categorias);
+    mostrar('detalle', html`${categorias.map((c) => htmlCategoriaDetalle(c, PORTAL.sede))}`, 'portal-cat-detalle');
+    // Si se llegó con /categorias#u13, la sección recién existe ahora: el navegador ya no va a bajar solo.
+    if (window.location.hash) document.getElementById(window.location.hash.slice(1))?.scrollIntoView();
+  }
+  await iniciarMarco();
 }
 
 export async function iniciarPortal() {
