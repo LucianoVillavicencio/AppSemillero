@@ -1,0 +1,142 @@
+/* =====================================================================
+   PORTAL MULTIPÁGINA — lo nuevo del portal de las familias (spec
+   2026-10-21-portal-multipagina). Las reglas .portal-* de antes siguen en
+   publico.css. Ritmo tomado del sitio del club: negro, papel y rojo.
+   Sin media queries de ancho: los cortes viven en layout.css. Sólo se
+   animan transform y opacity.
+   ===================================================================== */
+
+/* ---- encabezado: la marca lleva al inicio; la navegación es una fila que
+   se desliza en el celular y se pone al lado de la marca en compu ---- */
+.portal-barra{flex-wrap:wrap}
+.portal-logo{display:flex;align-items:center;gap:var(--sp-2);min-width:0;color:inherit;text-decoration:none}
+.portal-nav{order:3;flex:1 0 100%;display:flex;gap:var(--sp-1);overflow-x:auto;scrollbar-width:none;margin:var(--sp-2) calc(var(--sp-4) * -1) 0;padding:0 var(--sp-3)}
+.portal-nav::-webkit-scrollbar{display:none}
+.portal-nav a{
+  flex:0 0 auto;display:inline-flex;align-items:center;min-height:var(--tap);padding:0 var(--sp-2);
+  font-family:var(--ff-titulo);font-weight:700;font-size:var(--fs-145);letter-spacing:.08em;text-transform:uppercase;
+  color:var(--gris-osc);text-decoration:none;border-bottom:2px solid transparent
+}
+.portal-nav a[aria-current="page"]{color:var(--sobre-oscuro);border-bottom-color:var(--primario)}
+
+/* ---- barra de acciones: en el celular, fija abajo y visible desde el
+   primer pantallazo; en compu, pegada arriba (layout.css). La pinta
+   portalMarco.js; [hidden] mientras no responde la base o si no hay
+   ningún formulario abierto ---- */
+@keyframes portal-sube{from{transform:translateY(100%)}}
+@keyframes portal-baja{from{transform:translateY(-100%)}}
+.portal-acc-barra{
+  position:fixed;left:0;right:0;bottom:0;z-index:4;
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--sp-2);
+  padding:var(--sp-2) var(--sp-3) calc(var(--sp-2) + env(safe-area-inset-bottom));
+  background:var(--pub-fondo);border-top:1px solid var(--pub-borde);
+  animation:portal-sube var(--dur-3) var(--ease-salida)
+}
+.portal-acc-barra[hidden],.portal-acc-barra.escondida{display:none}
+.portal-acc-btn{
+  display:flex;flex-direction:column;justify-content:center;align-items:center;gap:.125rem;
+  min-height:var(--tap);padding:var(--sp-1) var(--sp-2);border-radius:var(--r-btn);
+  font-family:var(--ff-titulo);font-weight:700;font-size:var(--fs-145);line-height:1.05;letter-spacing:.06em;
+  text-transform:uppercase;text-align:center;text-decoration:none;transition:transform var(--dur-1) var(--ease-salida)
+}
+.portal-acc-btn:active{transform:scale(.97)}
+.portal-acc-btn.principal{background:var(--primario);color:var(--sobre-club)}
+.portal-acc-btn.pago{background:var(--sobre-oscuro);color:var(--pub-fondo)}
+.portal-acc-btn.apagada{border:1px dashed var(--pub-borde);color:var(--gris-osc)}
+.portal-acc-btn small{font-family:var(--ff-cuerpo);font-weight:500;font-size:var(--fs-100);letter-spacing:.04em;text-transform:none}
+/* Lo último de la página no queda tapado por la barra fija del celular. */
+.con-barra{padding-bottom:calc(var(--tap) + var(--sp-6) + env(safe-area-inset-bottom))}
+
+/* ---- secciones sobre papel, como "Lo último" del sitio del club ---- */
+.portal-papel{background:var(--papel);color:var(--tinta);padding:var(--sp-8) var(--sp-4);margin-top:var(--sp-8)}
+.portal-papel .portal-st{color:var(--primario-osc)}
+.portal-papel h1,.portal-papel h2{color:var(--tinta)}
+.portal-papel-cab{display:flex;align-items:flex-end;justify-content:space-between;gap:var(--sp-3);margin-bottom:var(--sp-5)}
+.portal-papel-cab h1,.portal-papel-cab h2{font-size:clamp(2rem,1.6rem + 2vw,3rem);line-height:.92}
+.portal-ver{
+  display:inline-flex;align-items:center;min-height:var(--tap);font-family:var(--ff-titulo);font-weight:700;
+  letter-spacing:.1em;text-transform:uppercase;font-size:var(--fs-135);color:var(--sobre-oscuro);text-decoration:none;white-space:nowrap
+}
+.portal-papel .portal-ver{color:var(--primario-osc)}
+
+/* ---- tarjetas de noticia: foto, etiqueta roja, título condensado,
+   fecha en mono y "LEER →" (como las del sitio del club) ---- */
+.portal-nots{display:grid;gap:var(--sp-4)}
+.portal-not a{display:flex;flex-direction:column;height:100%;background:var(--blanco);color:var(--tinta);text-decoration:none;border-radius:var(--r-s);overflow:hidden;box-shadow:var(--sombra)}
+.portal-not img{display:block;width:100%;aspect-ratio:16/10;object-fit:cover;background:var(--fondo-chip)}
+.portal-not-cuerpo{display:flex;flex-direction:column;gap:var(--sp-2);flex:1;padding:var(--sp-4)}
+.portal-not-et{
+  align-self:flex-start;background:var(--primario);color:var(--sobre-club);font-family:var(--ff-titulo);font-weight:700;
+  font-size:var(--fs-100);letter-spacing:.1em;text-transform:uppercase;padding:.125rem var(--sp-2);border-radius:var(--r-btn)
+}
+.portal-not h3{font-size:var(--fs-220);line-height:1;color:var(--tinta)}
+.portal-not p{margin:0;font-size:var(--fs-135);color:var(--gris);line-height:1.45}
+.portal-not-pie{
+  margin-top:auto;display:flex;justify-content:space-between;align-items:center;padding-top:var(--sp-3);
+  border-top:1px solid var(--linea);font-size:var(--fs-115);letter-spacing:.08em;text-transform:uppercase
+}
+.portal-not-pie time{font-family:var(--ff-mono);color:var(--gris)}
+.portal-not-pie span{font-family:var(--ff-titulo);font-weight:700;color:var(--primario-osc)}
+.portal-not-nada{font-size:var(--fs-145);color:var(--gris);margin:0}
+.portal-mas{margin-top:var(--sp-6);text-align:center}
+
+/* ---- una noticia entera ---- */
+.portal-art{max-width:44rem;margin-inline:auto}
+.portal-art-volver{
+  display:inline-flex;align-items:center;min-height:var(--tap);margin-bottom:var(--sp-3);font-family:var(--ff-titulo);font-weight:700;
+  letter-spacing:.08em;text-transform:uppercase;font-size:var(--fs-135);color:var(--primario-osc);text-decoration:none
+}
+.portal-art h1{font-size:clamp(2rem,1.6rem + 2.4vw,3.25rem);line-height:.95;margin:var(--sp-3) 0 var(--sp-2)}
+.portal-art time{display:block;font-family:var(--ff-mono);font-size:var(--fs-125);color:var(--gris);text-transform:uppercase;letter-spacing:.06em}
+.portal-art-bajada{font-size:var(--fs-170);line-height:1.45;color:var(--tinta);margin:var(--sp-4) 0}
+.portal-art-fotos{display:grid;gap:var(--sp-3);margin:var(--sp-4) 0}
+.portal-art-fotos figure{margin:0}
+.portal-art-fotos img{display:block;width:100%;height:auto;border-radius:var(--r-s);background:var(--fondo-chip)}
+/* pre-line: un salto de línea dentro de un párrafo se respeta, sin HTML. */
+.portal-art-cuerpo p{font-size:var(--fs-160);line-height:1.6;margin:0 0 var(--sp-4);white-space:pre-line}
+
+/* ---- página Categorías ---- */
+.portal-cat-indice{display:flex;flex-wrap:wrap;gap:var(--sp-2);margin-top:var(--sp-4)}
+.portal-cat-indice a{
+  display:inline-flex;align-items:center;min-height:var(--tap);padding:0 var(--sp-3);border:1px solid var(--pub-borde);border-radius:var(--r-btn);
+  font-family:var(--ff-titulo);font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:var(--fs-135);color:var(--sobre-oscuro);text-decoration:none
+}
+.portal-cat-sec{padding:var(--sp-6) 0;border-top:1px solid var(--linea);scroll-margin-top:calc(var(--tap) + var(--sp-8))}
+.portal-cat-sec:first-child{border-top:0;padding-top:0}
+.portal-cat-sec h2{font-size:clamp(2rem,1.6rem + 2vw,3rem);line-height:.92;margin:var(--sp-1) 0 var(--sp-4)}
+.portal-cat-datos{display:grid;gap:var(--sp-4);margin:0}
+.portal-cat-datos div{display:grid;gap:var(--sp-1);align-content:start}
+.portal-cat-datos dt{font-family:var(--ff-titulo);font-weight:700;letter-spacing:.12em;text-transform:uppercase;font-size:var(--fs-115);color:var(--gris)}
+.portal-cat-datos dd{margin:0;font-size:var(--fs-145);color:var(--tinta);line-height:1.45}
+.portal-cat-datos li + li{margin-top:var(--sp-1)}
+.portal-cat-datos a{color:var(--primario-osc)}
+.portal-cat-confirmar{font-style:italic;color:var(--gris)}
+.portal-cat-detalle{margin:var(--sp-4) 0 0;font-size:var(--fs-145);line-height:1.55;color:var(--tinta)}
+.portal-cat-ir{display:inline-flex;align-items:center;min-height:var(--tap);color:var(--sobre-oscuro);font-size:var(--fs-135)}
+
+/* ---- Ayuda: sede y alias ---- */
+.portal-contacto{display:grid;gap:var(--sp-3)}
+.portal-contacto-sede{padding:var(--sp-4);background:var(--pub-tarjeta);border:1px solid var(--pub-borde);border-radius:var(--r)}
+.portal-contacto-sede b{display:block;font-family:var(--ff-titulo);font-weight:700;text-transform:uppercase;letter-spacing:.03em;font-size:var(--fs-200);margin-top:var(--sp-1)}
+.portal-contacto-sede p{margin:var(--sp-1) 0 var(--sp-3);color:var(--gris-osc);font-size:var(--fs-135);line-height:1.5}
+.portal-contacto-sede .btn{text-decoration:none}
+.portal-contacto .portal-alias{margin:0}
+
+/* ---- inicio: franja "¿Dudas?" ---- */
+.portal-dudas{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--sp-3);padding:var(--sp-5);background:var(--pub-tarjeta);border:1px solid var(--pub-borde);border-radius:var(--r)}
+.portal-dudas b{display:block;font-family:var(--ff-titulo);font-weight:700;text-transform:uppercase;font-size:var(--fs-230);line-height:1}
+.portal-dudas span{display:block;color:var(--gris-osc);font-size:var(--fs-135);margin-top:var(--sp-1)}
+.portal-dudas .btn{text-decoration:none}
+
+/* ---- pie ---- */
+.portal-pie{display:grid;gap:var(--sp-5);width:100%;max-width:64rem;margin:var(--sp-8) auto 0;padding:var(--sp-8) var(--sp-4) var(--sp-6);border-top:3px solid var(--primario)}
+.portal-pie-marca{display:flex;align-items:center;gap:var(--sp-3)}
+.portal-pie-marca img{width:2.5rem;height:2.5rem;flex:0 0 auto}
+.portal-pie-marca b{display:block;font-family:var(--ff-titulo);font-weight:700;text-transform:uppercase;letter-spacing:.05em;font-size:var(--fs-200);line-height:1}
+.portal-pie-marca span{color:var(--gris-osc);font-size:var(--fs-115);letter-spacing:.12em;text-transform:uppercase}
+.portal-pie-nav{display:flex;flex-wrap:wrap;gap:0 var(--sp-4)}
+.portal-pie-nav a{display:inline-flex;align-items:center;min-height:var(--tap);color:var(--sobre-oscuro);text-decoration:none;font-family:var(--ff-titulo);font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-size:var(--fs-145)}
+.portal-pie-sede{color:var(--gris-osc);font-size:var(--fs-135);line-height:1.5}
+.portal-pie-sede b{color:var(--sobre-oscuro);font-weight:600}
+.portal-pie-sede a{color:var(--sobre-oscuro)}
+.portal-pie .pie-legal{margin:0}

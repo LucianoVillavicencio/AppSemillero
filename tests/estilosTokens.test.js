@@ -3,13 +3,13 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 
 /**
- * Los cuatro CSS y tokens.css se leen como texto: no hay build ni navegador
+ * Los CSS y tokens.css se leen como texto: no hay build ni navegador
  * en los tests, así que esto no valida cómo se ve nada. Valida los contratos
  * que se rompen sin que nadie lo note: una variable que se usa y no existe
  * (el navegador la ignora en silencio) y un texto sobre el color del club que
  * deja de leerse.
  */
-const ARCHIVOS = ['tokens', 'base', 'layout', 'componentes', 'publico', 'legal'];
+const ARCHIVOS = ['tokens', 'base', 'layout', 'componentes', 'publico', 'legal', 'portal'];
 const css = Object.fromEntries(ARCHIVOS.map((n) => [n, readFileSync(`public/css/${n}.css`, 'utf8')]));
 const tokens = css.tokens;
 

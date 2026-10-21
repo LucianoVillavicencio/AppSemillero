@@ -487,3 +487,30 @@
   .cat:hover{background:var(--sup-2)}
   .cat.on:hover{background:var(--primario-osc)}
 }
+
+/* ---- portal multipágina (portal.css) ---- */
+@media (min-width:40rem){
+  .publico .portal-nav{order:0;flex:0 1 auto;margin:0 0 0 auto;padding:0;overflow:visible}
+  .publico .portal-barra-acc{order:1;margin-left:var(--sp-3)}
+  /* En compu la barra va pegada arriba, en el flujo; en el inicio flota
+     (fija) recién cuando las tarjetas del hero salen de pantalla. */
+  .publico .portal-acc-barra{
+    position:sticky;top:0;bottom:auto;grid-template-columns:repeat(2,minmax(0,15rem));justify-content:end;
+    padding:var(--sp-2) var(--sp-6);border-top:0;border-bottom:1px solid var(--pub-borde);animation:none
+  }
+  .publico .portal-acc-barra.flotante{position:fixed;top:0;left:0;right:0;animation:portal-baja var(--dur-3) var(--ease-salida)}
+  .publico.con-barra{padding-bottom:0}
+  .publico .portal-papel{padding:var(--sp-8) var(--sp-6)}
+  .publico .portal-nots{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .publico .portal-art-fotos{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .publico .portal-cat-datos{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .publico .portal-contacto{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .publico .portal-pie{grid-template-columns:1fr auto;align-items:start;padding-inline:var(--sp-6)}
+}
+@media (min-width:64rem){
+  .publico .portal-nots{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media (hover:hover){
+  .publico .portal-nav a:hover{color:var(--sobre-oscuro)}
+  .publico .portal-not a:hover h3{color:var(--primario-osc)}
+}

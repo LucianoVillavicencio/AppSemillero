@@ -252,3 +252,11 @@ Presupuesto de la rama: ninguna regresión contra la medición previa, con toler
 - **Botón principal `.btn`**: rojo del club, letras blancas, casi recto (`--r-btn`), mayúsculas con `letter-spacing:.14em`. **Secundario `.btn.sec`**: negro macizo con letras blancas; con mouse pasa a rojo. Los dos suben 2 px y muestran el brillo del club en el `::after` al pasar el mouse. Sobre fondo oscuro (`.publico`) el secundario sigue siendo contorno.
 - **Títulos**: `.h2` grande, en `--tinta` y con barra roja debajo; `.eyebrow` en `--fs-190`, `--tinta`, negrita. `--gris-osc` es para fondo oscuro: no usarlo sobre papel.
 - **Acción de un bloque**: `.seccion-cab` pone el botón (`.btn.chico`) a la derecha del título del bloque que afecta (ej. "Cargar partido" en DATOS), en vez de una barra fija abajo.
+
+## Portal multipágina (spec 2026-10-21)
+
+- **Ritmo de lo público:** el portal de las familias deja de ser sólo oscuro y alterna, como el sitio del club, **negro** (hero, encabezado, pie), **papel** (`.portal-papel`: noticias y el detalle de categorías) y **rojo** (`.portal-banda`). La landing y la autenticación de `/app` siguen oscuras.
+- **Archivos:** lo nuevo vive en `public/css/portal.css`. Las reglas `.portal-*` anteriores siguen en `publico.css`. Los cortes de ancho están en `layout.css`.
+- **Barra de acciones (`.portal-acc-barra`):** las dos acciones principales. En el celular va fija abajo y entra subiendo (`portal-sube`, sólo `transform`). En compu va pegada arriba. En el inicio se esconde mientras se ven las tarjetas del hero (`.escondida`) y después flota (`.flotante`). Sin formularios abiertos, no aparece.
+- **Tarjeta de noticia (`.portal-not`):** foto 16:10, etiqueta roja, título condensado, fecha en mono y "LEER →". La etiqueta es `--sobre-club` sobre `--primario` (4.5:1, lo mide `estilosTokens`).
+- **Lo que no se copió del sitio del club, a propósito:** la cinta que corre ("HACETE SOCIO" en loop), la cuenta regresiva por segundo y los contadores animados. Son animaciones continuas, que este documento prohíbe (ver Reglas duras).
