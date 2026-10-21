@@ -15,7 +15,7 @@ const PAGINAS = {
   '/categorias': 'public/categorias.html',
   '/calendario': 'public/calendario.html',
   '/ayuda': 'public/ayuda.html',
-  // La Task 13 suma '/noticias': 'public/noticias.html'.
+  '/noticias': 'public/noticias.html',
 };
 
 const leer = (r) => readFileSync(r, 'utf8').replace(/\r\n/g, '\n');

@@ -13,6 +13,7 @@ import {
 } from '../data/agenda.js';
 import { destinoDeAuth } from '../data/entradaAuth.js';
 import { iniciarMarco, esconderBarraMientrasSeVea } from './portalMarco.js';
+import { iniciarUltimasNoticias } from './portalNoticias.js';
 
 /*
  * Portal "Básquet Newell's": la página pública que se reparte a las familias
@@ -624,6 +625,7 @@ export async function iniciarPortal() {
     cablearIcs($('proximo'), agenda);
     mostrarProximo(agenda).then((hay) => { $('proximo').hidden = !hay; }, () => {});
   }
+  iniciarUltimasNoticias();
 
   const datos = await marco;
   if (!datos) return;

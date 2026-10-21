@@ -135,3 +135,10 @@ test('el import map de /consultas tiene su hash en script-src y no hay otros scr
   const inline = [...pagina.matchAll(/<script(?![^>]*\bsrc=)([^>]*)>/g)].filter((x) => !/type="importmap"/.test(x[1]));
   assert.deepEqual(inline.map((x) => x[0]), []);
 });
+
+// Las fotos de las noticias (0064) se sirven desde el bucket público del
+// proyecto de Supabase. blob: es la vista previa del panel y del marcador.
+test('img-src: el sitio, blob, las miniaturas de YouTube y el Storage de Supabase, nada más', () => {
+  const url = readFileSync(path.join(raiz, 'public', 'config.js'), 'utf8').match(/SUPABASE_URL = '([^']+)'/)[1];
+  assert.deepEqual(directiva('img-src'), ["'self'", 'blob:', 'https://i.ytimg.com', url]);
+});
