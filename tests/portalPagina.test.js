@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   htmlFormularios, htmlAvisoRespaldo, htmlLogos, htmlHeroe, htmlAlias, htmlBuscador, htmlCategoriaDelAnio, htmlProximo,
-  htmlRecaudacion, htmlColaborar, htmlAyuda, htmlAtajos, htmlCalendario, htmlCategorias, htmlFoto, diaInicial, htmlSuscripcion,
+  htmlRecaudacion, htmlColaborar, htmlAyuda, htmlCalendario, htmlFoto, diaInicial, htmlSuscripcion,
 } from '../src/ui/portal.js';
 import { PAGINAS_PORTAL } from '../src/data/portal.js';
 import { eventoDesdeGoogle, eventosPorDia, proximosEventos } from '../src/data/agenda.js';
@@ -17,21 +17,37 @@ const pagina = readFileSync('public/portal.html', 'utf8');
 const portal = readFileSync('src/ui/portal.js', 'utf8');
 const seccion = (id) => pagina.match(new RegExp(`<section [^>]*id="${id}"[\\s\\S]*?</section>`))?.[0] ?? '';
 
-test('arriba de todo, la banda con las dos acciones; después el resto, en orden', () => {
-  const orden = ['heroe', 'calendario', 'recaudacion', 'colaborar', 'categorias', 'formularios', 'club', 'sponsors'];
+test('el inicio es el resumen de todo: hero, noticias, lo que viene, categorías, recaudación, colaborar, formularios, dudas, club y sponsors', () => {
+  const orden = ['heroe', 'noticias', 'proximo', 'categorias', 'recaudacion', 'colaborar', 'formularios', 'dudas', 'club', 'sponsors'];
   const posiciones = orden.map((id) => pagina.search(new RegExp(`<section [^>]*id="${id}"`)));
   assert.ok(posiciones.every((p) => p > 0), `faltan secciones: ${posiciones}`);
   assert.deepEqual([...posiciones].sort((a, b) => a - b), posiciones, 'las secciones están desordenadas');
   assert.match(seccion('heroe'), /<h1>/, 'el h1 de la página está en la banda');
+  assert.doesNotMatch(pagina, /portal-atajos|id="portal-calendario"|portal-todas/, 'atajos, grilla y lista plegada tienen página propia');
 });
 
-test('las secciones que dependen de datos arrancan ocultas; la banda, recaudación y colaborar se ven siempre', () => {
-  for (const id of ['calendario', 'categorias', 'formularios', 'club', 'sponsors']) {
+test('las secciones que dependen de datos arrancan ocultas; la banda, recaudación, colaborar y dudas se ven siempre', () => {
+  for (const id of ['noticias', 'proximo', 'categorias', 'formularios', 'club', 'sponsors']) {
     assert.match(seccion(id).split('>')[0], /\bhidden\b/, `#${id} tiene que arrancar oculta`);
   }
-  for (const id of ['heroe', 'recaudacion', 'colaborar']) {
+  for (const id of ['heroe', 'recaudacion', 'colaborar', 'dudas']) {
     assert.doesNotMatch(seccion(id).split('>')[0], /\bhidden\b/, `#${id} se ve siempre`);
   }
+});
+
+test('cada resumen lleva a su página', () => {
+  assert.match(seccion('noticias'), /<a class="portal-ver" href="\/noticias">Ver todas →<\/a>/);
+  assert.match(seccion('proximo'), /<a class="portal-ver" href="\/calendario">Ver el calendario completo →<\/a>/);
+  assert.match(seccion('categorias'), /<a class="portal-ver" href="\/categorias">Ver todas las categorías →<\/a>/);
+  assert.match(seccion('dudas'), /<a class="btn sec" href="\/ayuda">Ver la ayuda<\/a>/);
+});
+
+test('un link viejo (/#ayuda) redirige antes de pintar nada', () => {
+  const desde = portal.indexOf('export async function iniciarPortal(');
+  const cuerpo = portal.slice(desde, portal.indexOf('\n}\n', desde));
+  const redirige = cuerpo.indexOf('paginaDeAncla(window.location.hash)');
+  assert.ok(redirige > 0 && redirige < cuerpo.indexOf('mostrar('), 'la redirección va primero');
+  assert.match(cuerpo, /window\.location\.replace\(pagina\)/);
 });
 
 test('ni la página ni su código dicen "Próximamente"', () => {
@@ -158,16 +174,6 @@ test('alias: escapado y con botón para copiarlo; uno inválido no se muestra', 
   assert.equal(htmlAlias({ alias: 'mal alias' }).toString(), '');
 });
 
-test('atajos: con menos de dos no hay fila; el de ayuda abre afuera', () => {
-  assert.equal(htmlAtajos([{ clave: 'jugar', texto: 'Quiero jugar', href: '#jugar' }]).toString(), '');
-  const out = htmlAtajos([
-    { clave: 'jugar', texto: 'Quiero jugar', href: '#jugar' },
-    { clave: 'ayuda', texto: 'Ayuda', href: 'https://wa.me/5493410000000', externo: true },
-  ]).toString();
-  assert.match(out, /<a href="#jugar"><i><svg/);
-  assert.match(out, /<a href="https:\/\/wa\.me\/5493410000000" target="_blank" rel="noopener">/);
-});
-
 // ---- Calendario propio ----
 
 const CALS = [{ tipo: 'partido', titulo: 'Partidos', id: 'p@x.y' }, { tipo: 'evento', titulo: 'Eventos', id: 'e@x.y' }];
@@ -243,7 +249,6 @@ test('día inicial: hoy si es del mes; si no, el primero con algo, o el 1', () =
 // ---- Categorías, sede, foto, contacto: sin datos, nada ----
 
 test('sin datos, cada parte no devuelve nada (la sección queda oculta)', () => {
-  assert.equal(htmlCategorias([]).toString(), '');
   assert.equal(htmlFoto(null).toString(), '');
   assert.equal(htmlFormularios([]).toString(), '');
 });
@@ -275,15 +280,6 @@ test('categoría del año: sin ninguna, lo dice y manda a las preguntas frecuent
   assert.match(out, /Para chicos nacidos en 2021 todavía no hay categoría\./);
   assert.match(out, /<a href="\/ayuda">/);
   assert.doesNotMatch(out, /wa\.me|coordinador/);
-});
-
-test('categorías: nombre, rama, años y horario, escapados', () => {
-  const out = htmlCategorias([{ nombre: 'U9', rama: 'Mixto', anios: '2017 y 2018', horario: 'Lun <18 h>' }]).toString();
-  assert.match(out, /<b>U9<\/b><span>Mixto<\/span>/);
-  assert.match(out, /2017 y 2018/);
-  assert.match(out, /Lun &lt;18 h&gt;/);
-  const dos = htmlCategorias([{ nombre: 'U13', rama: null, anios: 'x', horario: 'Lun 18 h · Mié 19 h' }]).toString();
-  assert.match(dos, /<span>Lun 18 h<\/span><span>Mié 19 h<\/span>/);
 });
 
 test('foto con su alt', () => {

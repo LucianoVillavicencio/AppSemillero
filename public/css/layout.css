@@ -383,7 +383,7 @@
   .publico .futuro{padding-inline:var(--sp-6)}
   /* Portal: las bandas con esquinas y más aire, atajos en una fila,
      formularios y categorías en dos columnas. */
-  .publico .portal-barra,.publico .portal-atajos,.publico .portal-sec{padding-inline:var(--sp-6)}
+  .publico .portal-barra,.publico .portal-sec{padding-inline:var(--sp-6)}
   .publico .portal-barra{padding-top:var(--sp-5)}
   .publico .portal-barra .s{display:block}
   /* La hoja de Ayuda: un diálogo centrado. */
@@ -397,13 +397,7 @@
   .publico .portal-formas{grid-template-columns:repeat(2,minmax(0,1fr))}
   /* La categoría: el año a la izquierda y el resultado al lado, ocupando todo el ancho. */
   .publico .portal-buscador{grid-template-columns:minmax(15rem,18rem) 1fr;align-items:end;gap:var(--sp-4)}
-  .publico .portal-atajos{grid-template-columns:repeat(auto-fit,minmax(9rem,1fr));gap:var(--sp-3)}
-  .publico .portal-atajos a{flex-direction:row;justify-content:center;font-size:var(--fs-145);padding:var(--sp-3)}
   .publico .portal-lista{grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--sp-4)}
-  .publico .portal-cats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
-  .publico .portal-cats li + li{border-top:0}
-  .publico .portal-cats li:nth-child(n+3){border-top:1px solid var(--pub-borde)}
-  .publico .portal-cats li:nth-child(even){border-left:1px solid var(--pub-borde)}
   .publico .portal-logos-lista{grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--sp-4)}
   /* Bento en 2 columnas: las anchas y las altas ocupan el ancho completo; las dos últimas van lado a lado. */
   .publico .ben.ancha,.publico .ben.alta{grid-column:1 / -1}
@@ -511,4 +505,9 @@
 @media (hover:hover){
   .publico .portal-nav a:hover{color:var(--sobre-oscuro)}
   .publico .portal-not a:hover h3{color:var(--primario-osc)}
+}
+
+/* Celulares bajitos: las dos acciones primero; la bajada del hero es lo que sobra. */
+@media (max-width:39.99rem) and (max-height:600px){
+  .publico .portal-heroe-bajada{display:none}
 }

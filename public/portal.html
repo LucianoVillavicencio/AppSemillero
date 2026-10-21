@@ -51,7 +51,9 @@
 <body>
 
 <!-- =====================================================================
-     PORTAL "BÁSQUET NEWELL'S": la puerta pública para las familias.
+     PORTAL "BÁSQUET NEWELL'S": la puerta pública para las familias. Son cinco
+     páginas (inicio, noticias, categorías, calendario y ayuda); este archivo
+     es el inicio, el resumen de todo.
      Sin sesión y sin service worker (la app instalable es /app). Quien más
      la usa es un padre que viene a inscribir o a mandar un comprobante: esas
      dos acciones son las protagonistas de la banda de arriba. Profes y
@@ -93,22 +95,37 @@
 
   <main class="portal">
     <!-- El hero: la banda roja y negra (la camiseta) con el título de la
-         página y, adentro, las dos tarjetas protagonistas (src/ui/portal.js,
-         htmlHeroe): inscribir (o "Quiero jugar" si la inscripción está
-         cerrada) y enviar el comprobante, con el alias. Arranca con todo
-         cerrado hasta que responde la base. -->
+         página y las dos tarjetas protagonistas (src/ui/portal.js, htmlHeroe):
+         inscribir (o "Quiero jugar" si la inscripción está cerrada) y enviar
+         el comprobante, con el alias. Tiene que entrar entero en el primer
+         pantallazo de un celular. Arranca con todo cerrado hasta que responde
+         la base. -->
     <section class="portal-heroe" id="heroe" aria-label="Básquet formativo de Newell's">
       <div id="portal-heroe"><div class="portal-heroe-ey">Formativas · Rosario</div><h1>Básquet formativo de Newell&#39;s</h1></div>
     </section>
 
-    <nav class="portal-atajos" id="portal-atajos" aria-label="Atajos"></nav>
+    <!-- Las últimas 3 noticias (src/ui/portalNoticias.js). Sin noticias, o
+         sin la migración 0064 en la base, queda oculta. -->
+    <section class="portal-papel" id="noticias" aria-labelledby="t-noticias" hidden>
+      <div class="portal-papel-cab"><div><div class="portal-st">Noticias</div><h2 id="t-noticias">Lo último del básquet</h2></div><a class="portal-ver" href="/noticias">Ver todas →</a></div>
+      <div id="portal-noticias"></div>
+    </section>
 
-    <section class="portal-sec" id="calendario" aria-labelledby="t-calendario" hidden>
+    <!-- El próximo evento del calendario; la grilla entera está en /calendario. -->
+    <section class="portal-sec" id="proximo" aria-labelledby="t-proximo" hidden>
       <div class="portal-st">Agenda del club</div>
-      <h2 id="t-calendario">Calendario</h2>
-      <p class="intro">Partidos, eventos y charlas. Tocá un día para ver qué hay.</p>
+      <h2 id="t-proximo">Calendario</h2>
       <div id="portal-proximo"></div>
-      <div id="portal-calendario"></div>
+      <a class="portal-ver" href="/calendario">Ver el calendario completo →</a>
+    </section>
+
+    <!-- Elegís el año de nacimiento y al lado te dice la categoría y el
+         horario. El detalle de cada una está en /categorias. -->
+    <section class="portal-sec portal-cat" id="categorias" aria-labelledby="t-categorias" hidden>
+      <div class="portal-st">Categorías<span id="t-categorias-temp"></span></div>
+      <h2 id="t-categorias">¿En qué categoría juega?</h2>
+      <div class="portal-buscador" id="portal-buscador"></div>
+      <a class="portal-ver" href="/categorias">Ver todas las categorías →</a>
     </section>
 
     <!-- Banda roja a todo el ancho: aviso de los eventos de recaudación (destino recaudacion, 0063). -->
@@ -123,19 +140,14 @@
       <div id="portal-colaborar"></div>
     </section>
 
-    <!-- Elegís el año de nacimiento y al lado te dice la categoría y el
-         horario. La lista completa queda plegada abajo. -->
-    <section class="portal-sec portal-cat" id="categorias" aria-labelledby="t-categorias" hidden>
-      <div class="portal-st">Categorías<span id="t-categorias-temp"></span></div>
-      <h2 id="t-categorias">¿En qué categoría juega?</h2>
-      <div class="portal-buscador" id="portal-buscador"></div>
-      <details class="portal-todas"><summary>Ver todas las categorías</summary><div id="portal-categorias"></div></details>
-    </section>
-
     <section class="portal-sec" id="formularios" aria-labelledby="t-formularios" hidden>
       <h2 id="t-formularios">Otros formularios</h2>
       <p class="intro">Cada uno te cuenta para qué es y qué tenés que tener a mano antes de abrirlo.</p>
       <div class="portal-lista" id="portal-formularios"></div>
+    </section>
+
+    <section class="portal-sec" id="dudas" aria-label="Ayuda">
+      <div class="portal-dudas"><div><b>¿Dudas?</b><span>Preguntas frecuentes, la sede y el alias para transferir.</span></div><a class="btn sec" href="/ayuda">Ver la ayuda</a></div>
     </section>
 
     <!-- La foto del club (PORTAL.foto): sólo con la autorización de imagen de las familias. -->

@@ -3,7 +3,7 @@ import { $ } from './dom.js';
 import { eventosDelMes } from '../data/repositorio.js';
 import {
   PORTAL, enlaceFormulario, enlaceContacto, sponsorsValidos, calendariosActivos, categoriasDelPortal,
-  categoriasDelAnio, categoriasConDetalle, sedeValida, aliasValido, fotoValida,
+  categoriasDelAnio, categoriasConDetalle, sedeValida, paginaDeAncla, aliasValido, fotoValida,
 } from '../data/portal.js';
 import { temporadaComoAnio } from '../data/categorias.js';
 import { accionesPrincipales } from '../data/formulariosPortal.js';
@@ -33,10 +33,6 @@ const ABRE = '↗';
 /** Los íconos de los atajos y de las acciones: trazos simples en currentColor, decorativos. */
 const ICONO = {
   jugar: html`<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c-3 3-3 15 0 18M12 3c3 3 3 15 0 18"/></svg>`,
-  calendario: html`<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>`,
-  categorias: html`<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>`,
-  colaborar: html`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg>`,
-  ayuda: html`<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17.5v.01"/></svg>`,
   comprobante: html`<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h4"/></svg>`,
   inscribir: html`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M9 14h6M9 17h4"/></svg>`,
   empresa: html`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6"/></svg>`,
@@ -103,15 +99,6 @@ export function htmlAlias(alias) {
   </div>`;
 }
 
-/**
- * Los atajos de abajo de la banda: sólo a lo que existe en la página. Con
- * menos de dos no vale la fila: no devuelve nada.
- */
-export function htmlAtajos(atajos) {
-  if (atajos.length < 2) return html``;
-  return html`${atajos.map(({ clave, texto, href, externo }) => html`<a href="${href}"${externo && html` target="_blank" rel="noopener"`}><i>${ICONO[clave]}</i>${texto}</a>`)}`;
-}
-
 /** Si la base no respondió se muestra una copia: mejor eso que nada, pero que se note. */
 export function htmlAvisoRespaldo() {
   return html`<p class="portal-aviso">No pudimos actualizar la lista de formularios; te mostramos la última que conocemos.</p>`;
@@ -170,16 +157,6 @@ export function htmlFormularios(formularios) {
     <div class="d">${texto}</div>
     ${botonExterno(enlaceFormulario(enlace), 'Abrir el formulario')}
   </div>`)}`;
-}
-
-/** Categorías con sus años de nacimiento y, si el club los pasó, sus horarios. Sin ninguna, nada. */
-export function htmlCategorias(categorias) {
-  if (!categorias.length) return html``;
-  return html`<ul class="portal-cats">${categorias.map(({ nombre, rama, anios, horario }) => html`<li>
-    <div><b>${nombre}</b>${rama && html`<span>${rama}</span>`}</div>
-    <div class="portal-cats-anios">${anios}</div>
-    ${horario && html`<div class="portal-cats-hora">${horario.split(' · ').map((h) => html`<span>${h}</span>`)}</div>`}
-  </li>`)}</ul>`;
 }
 
 /** El selector de año del "¿En qué categoría juega?": − y + alrededor del año, y el lugar del resultado al lado. */
@@ -609,34 +586,31 @@ export async function iniciarPaginaCalendario() {
   await marco;
 }
 
+/** Lo del inicio que depende de los formularios. Sin argumentos, todo cerrado. */
+function pintarFormularios({ inscripcion = null, comprobante = null, consultas = null, colaboradores = null, recaudacion = null } = {}) {
+  $('portal-heroe').innerHTML = htmlHeroe({ inscripcion, consultas, comprobante, temporada: PORTAL.temporada, alias: PORTAL.alias });
+  $('portal-recaudacion').innerHTML = htmlRecaudacion(recaudacion);
+  $('portal-colaborar').innerHTML = htmlColaborar(colaboradores);
+}
+
 export async function iniciarPortal() {
-  const categorias = categoriasDelPortal(PORTAL.categorias, PORTAL.temporada);
-  $('portal-categorias').innerHTML = htmlCategorias(categorias);
-  $('categorias').hidden = !categorias.length;
+  // Un link viejo de cuando todo era una página (/#ayuda, /#categorias, /#calendario) va a su página nueva.
+  const pagina = paginaDeAncla(window.location.hash);
+  if (pagina) {
+    window.location.replace(pagina);
+    return;
+  }
+
   const temporada = temporadaComoAnio(PORTAL.temporada);
+  const categorias = categoriasDelPortal(PORTAL.categorias, PORTAL.temporada);
+  $('categorias').hidden = !(temporada && categorias.length);
   if (temporada) $('t-categorias-temp').textContent = ` ${temporada}`;
-  if (temporada && categorias.length) iniciarBuscador(temporada);
+  if (temporada && categorias.length) iniciarBuscador(temporada, (c) => `/categorias#${c.ancla}`);
   mostrar('club', htmlFoto(PORTAL.foto), 'portal-foto');
   mostrar('sponsors', htmlLogos(PORTAL.sponsors), 'portal-logos');
 
   // Hasta que responda la base, todo cerrado: nunca un botón a un formulario que quizá ya no está.
-  const pintarFormularios = ({ inscripcion = null, comprobante = null, consultas = null, colaboradores = null, recaudacion = null } = {}) => {
-    $('portal-heroe').innerHTML = htmlHeroe({ inscripcion, consultas, comprobante, temporada: PORTAL.temporada, alias: PORTAL.alias });
-    $('portal-recaudacion').innerHTML = htmlRecaudacion(recaudacion);
-    $('portal-colaborar').innerHTML = htmlColaborar(colaboradores);
-  };
   pintarFormularios();
-
-  const calendarios = calendariosActivos(PORTAL.agenda);
-  $('calendario').hidden = !calendarios.length;
-
-  $('portal-atajos').innerHTML = htmlAtajos([
-    !$('calendario').hidden && { clave: 'calendario', texto: 'Calendario', href: '#calendario' },
-    !$('categorias').hidden && { clave: 'categorias', texto: 'Categorías', href: '#categorias' },
-    { clave: 'colaborar', texto: 'Sumate', href: '#colaborar' },
-    { clave: 'ayuda', texto: 'Ayuda', href: '/ayuda' },
-  ].filter(Boolean));
-
   esconderBarraMientrasSeVea($('portal-heroe'));
   const marco = iniciarMarco();
 
@@ -644,10 +618,11 @@ export async function iniciarPortal() {
   // persona a /app: acá no se pide nada más (el marco tampoco lee la base).
   if (destinoDeAuth(window.location.search, window.location.hash)) return;
 
+  const calendarios = calendariosActivos(PORTAL.agenda);
   if (calendarios.length) {
     const agenda = crearAgenda(calendarios);
-    cablearIcs($('calendario'), agenda);
-    iniciarCalendario(agenda).then(() => mostrarProximo(agenda));
+    cablearIcs($('proximo'), agenda);
+    mostrarProximo(agenda).then((hay) => { $('proximo').hidden = !hay; }, () => {});
   }
 
   const datos = await marco;
