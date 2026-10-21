@@ -101,9 +101,11 @@ test('portal.js sólo pide datos por el repositorio: ni repos/, ni cliente, ni S
 test('el inicio no pide nada si la URL es la vuelta de un login: esos links van a /app', () => {
   // El cliente de Supabase canjearía el ?code= o el #access_token en esta página.
   // La lectura de formularios la guarda el marco (tests/portalMarco.test.js).
-  const guarda = portal.indexOf('destinoDeAuth(window.location.search, window.location.hash)');
-  assert.ok(guarda > 0 && guarda < portal.lastIndexOf('iniciarCalendario(calendarios)'), 'la guarda va antes de pedir el calendario');
-  assert.ok(portal.indexOf('iniciarMarco()') < guarda, 'el marco arranca antes (completa el pie aunque no lea la base)');
+  const desde = portal.indexOf('export async function iniciarPortal(');
+  const cuerpo = portal.slice(desde, portal.indexOf('\n}\n', desde));
+  const guarda = cuerpo.indexOf('destinoDeAuth(window.location.search, window.location.hash)');
+  assert.ok(guarda > 0 && guarda < cuerpo.indexOf('crearAgenda('), 'la guarda va antes de pedir el calendario');
+  assert.ok(cuerpo.indexOf('iniciarMarco()') < guarda, 'el marco arranca antes (completa el pie aunque no lea la base)');
 });
 
 // ---- El hero: el título de la página y las dos tarjetas protagonistas ----
@@ -225,11 +227,11 @@ test('"Lo que viene": fecha grande, tipo, título escapado, hora y lugar, y para
 });
 
 test('"Lo que viene" busca en el mes siguiente si en lo que queda del mes no hay nada', () => {
-  const desde = portal.indexOf('async function mostrarProximo()');
-  const cuerpo = portal.slice(desde, portal.indexOf('\n  }\n', desde));
+  const desde = portal.indexOf('async function mostrarProximo(agenda)');
+  const cuerpo = portal.slice(desde, portal.indexOf('\n}\n', desde));
   assert.match(cuerpo, /mesVecino\(anio, mes, 1\)/);
   assert.match(cuerpo, /Number\(hoy\.slice/, 'sale del mes de hoy, no del que muestra la grilla');
-  assert.match(portal, /cargar\(estado\.anio, estado\.mes\)\.then\(mostrarProximo\)/);
+  assert.match(portal, /iniciarCalendario\(agenda\)\.then\(\(\) => mostrarProximo\(agenda\)\)/);
 });
 
 test('día inicial: hoy si es del mes; si no, el primero con algo, o el 1', () => {

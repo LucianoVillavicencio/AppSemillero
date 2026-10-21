@@ -433,13 +433,9 @@ function bajarIcs(evento) {
   setTimeout(() => URL.revokeObjectURL(url), 10000);
 }
 
-function iniciarCalendario(calendarios) {
-  const hoy = hoyEnRosario();
+/** Los eventos de Google por mes, con caché: los comparten la grilla y "Lo que viene". */
+export function crearAgenda(calendarios) {
   const cache = new Map();
-  const estado = { anio: Number(hoy.slice(0, 4)), mes: Number(hoy.slice(5, 7)), elegido: hoy, hoy, porDia: new Map(), fallidos: 0, cargando: true };
-  const pintar = () => { $('portal-calendario').innerHTML = htmlCalendario(estado, calendarios); };
-
-  /** Los eventos de un mes, de la caché o de Google (y quedan en la caché). */
   async function traer(anio, mes) {
     const clave = `${anio}-${mes}`;
     if (!cache.has(clave)) {
@@ -448,49 +444,67 @@ function iniciarCalendario(calendarios) {
     }
     return cache.get(clave);
   }
+  return {
+    calendarios,
+    traer,
+    yaTraido: (anio, mes) => cache.has(`${anio}-${mes}`),
+    // El botón "iPhone" busca su evento en todos los meses ya traídos: "Lo que viene" puede ser de otro mes que la grilla.
+    eventos: () => [...cache.values()].flatMap((c) => [...c.porDia.values()].flat()),
+  };
+}
+
+/**
+ * "Lo que viene": el próximo desde hoy. Si en lo que queda del mes no hay
+ * nada, lo busca en el mes siguiente (a fin de mes, el próximo partido suele
+ * caer ahí). Devuelve si encontró algo, para mostrar u ocultar su sección.
+ */
+export async function mostrarProximo(agenda) {
+  const hoy = hoyEnRosario();
+  const anio = Number(hoy.slice(0, 4));
+  const mes = Number(hoy.slice(5, 7));
+  let [proximo] = proximosEventos((await agenda.traer(anio, mes)).porDia, hoy, 1);
+  if (!proximo) {
+    const sig = mesVecino(anio, mes, 1);
+    [proximo] = proximosEventos((await agenda.traer(sig.anio, sig.mes)).porDia, hoy, 1);
+  }
+  const contenido = htmlProximo(proximo, hoy).toString();
+  $('portal-proximo').innerHTML = contenido;
+  return Boolean(contenido);
+}
+
+/** El botón "iPhone" de cualquier evento de la sección baja su .ics. */
+export function cablearIcs(seccion, agenda) {
+  seccion.addEventListener('click', (ev) => {
+    const ics = ev.target.closest('[data-ics]');
+    if (!ics) return;
+    const evento = agenda.eventos().find((e) => claveEvento(e) === ics.dataset.ics);
+    if (evento) bajarIcs(evento);
+  });
+}
+
+/** La grilla del mes: elegir un día y pasar de mes. */
+export function iniciarCalendario(agenda) {
+  const hoy = hoyEnRosario();
+  const estado = { anio: Number(hoy.slice(0, 4)), mes: Number(hoy.slice(5, 7)), elegido: hoy, hoy, porDia: new Map(), fallidos: 0, cargando: true };
+  const pintar = () => { $('portal-calendario').innerHTML = htmlCalendario(estado, agenda.calendarios); };
 
   async function cargar(anio, mes) {
-    const clave = `${anio}-${mes}`;
-    Object.assign(estado, { anio, mes, cargando: !cache.has(clave) });
-    if (!cache.has(clave)) {
+    const yaEsta = agenda.yaTraido(anio, mes);
+    Object.assign(estado, { anio, mes, cargando: !yaEsta });
+    if (!yaEsta) {
       estado.porDia = new Map();
       estado.elegido = diaInicial(anio, mes, hoy, estado.porDia);
       pintar();
-      await traer(anio, mes);
-      // Si mientras tanto la persona pasó a otro mes, este resultado queda guardado y no se pinta.
-      if (estado.anio !== anio || estado.mes !== mes) return;
     }
-    Object.assign(estado, cache.get(clave), { cargando: false });
+    const datos = await agenda.traer(anio, mes);
+    // Si mientras tanto la persona pasó a otro mes, este resultado queda guardado y no se pinta.
+    if (estado.anio !== anio || estado.mes !== mes) return;
+    Object.assign(estado, datos, { cargando: false });
     estado.elegido = diaInicial(anio, mes, hoy, estado.porDia);
     pintar();
   }
 
-  /**
-   * "Lo que viene": el próximo desde hoy. Si en lo que queda del mes no hay
-   * nada, lo busca en el mes siguiente (a fin de mes, el próximo partido suele
-   * caer ahí). No cambia al pasar de mes en la grilla.
-   */
-  async function mostrarProximo() {
-    const anio = Number(hoy.slice(0, 4));
-    const mes = Number(hoy.slice(5, 7));
-    let [proximo] = proximosEventos((await traer(anio, mes)).porDia, hoy, 1);
-    if (!proximo) {
-      const sig = mesVecino(anio, mes, 1);
-      [proximo] = proximosEventos((await traer(sig.anio, sig.mes)).porDia, hoy, 1);
-    }
-    $('portal-proximo').innerHTML = htmlProximo(proximo, hoy);
-  }
-
-  // En la sección entera: el "iPhone" de "Lo que viene" y los del mes. El
-  // evento se busca en todos los meses ya traídos, porque "Lo que viene"
-  // puede ser de otro mes que el de la grilla.
-  $('calendario').addEventListener('click', (ev) => {
-    const ics = ev.target.closest('[data-ics]');
-    if (ics) {
-      const evento = [...cache.values()].flatMap((c) => [...c.porDia.values()].flat()).find((e) => claveEvento(e) === ics.dataset.ics);
-      if (evento) bajarIcs(evento);
-      return;
-    }
+  $('portal-calendario').addEventListener('click', (ev) => {
     const dia = ev.target.closest('[data-dia]');
     if (dia) {
       estado.elegido = dia.dataset.dia;
@@ -503,7 +517,7 @@ function iniciarCalendario(calendarios) {
       cargar(anio, mes);
     }
   });
-  cargar(estado.anio, estado.mes).then(mostrarProximo);
+  return cargar(estado.anio, estado.mes);
 }
 
 /* ---------- ¿En qué categoría juega? ---------- */
@@ -581,6 +595,20 @@ export async function iniciarPaginaCategorias() {
   await iniciarMarco();
 }
 
+/** /calendario: la grilla, "Lo que viene" y suscribirse. */
+export async function iniciarPaginaCalendario() {
+  const marco = iniciarMarco();
+  const calendarios = calendariosActivos(PORTAL.agenda);
+  $('calendario').hidden = !calendarios.length;
+  $('calendario-sin').hidden = calendarios.length > 0;
+  if (calendarios.length) {
+    const agenda = crearAgenda(calendarios);
+    cablearIcs($('calendario'), agenda);
+    iniciarCalendario(agenda).then(() => mostrarProximo(agenda));
+  }
+  await marco;
+}
+
 export async function iniciarPortal() {
   const categorias = categoriasDelPortal(PORTAL.categorias, PORTAL.temporada);
   $('portal-categorias').innerHTML = htmlCategorias(categorias);
@@ -616,7 +644,11 @@ export async function iniciarPortal() {
   // persona a /app: acá no se pide nada más (el marco tampoco lee la base).
   if (destinoDeAuth(window.location.search, window.location.hash)) return;
 
-  if (calendarios.length) iniciarCalendario(calendarios);
+  if (calendarios.length) {
+    const agenda = crearAgenda(calendarios);
+    cablearIcs($('calendario'), agenda);
+    iniciarCalendario(agenda).then(() => mostrarProximo(agenda));
+  }
 
   const datos = await marco;
   if (!datos) return;
