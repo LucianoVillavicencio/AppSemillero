@@ -97,6 +97,39 @@ export const PORTAL = Object.freeze({
   formularios: Object.freeze([]),
 });
 
+/** Las páginas del portal, en el orden de la navegación (encabezado y pie). */
+export const PAGINAS_PORTAL = Object.freeze([
+  Object.freeze({ href: '/', texto: 'Inicio' }),
+  Object.freeze({ href: '/noticias', texto: 'Noticias' }),
+  Object.freeze({ href: '/categorias', texto: 'Categorías' }),
+  Object.freeze({ href: '/calendario', texto: 'Calendario' }),
+  Object.freeze({ href: '/ayuda', texto: 'Ayuda' }),
+]);
+
+// Los links de cuando el portal era una sola página siguen dando vueltas por
+// WhatsApp (el "Ayuda" de arriba, el atajo a Categorías). Map y no objeto:
+// así "#constructor" no encuentra nada heredado.
+const PAGINA_DE_ANCLA = new Map([['#ayuda', '/ayuda'], ['#categorias', '/categorias'], ['#calendario', '/calendario']]);
+
+/**
+ * A qué página nueva lleva un ancla vieja de "/". Cualquier otra cosa da null,
+ * en particular el #access_token de la vuelta de un login (eso lo resuelve
+ * portalEntrada.js, que manda a /app).
+ */
+export function paginaDeAncla(hash) {
+  return PAGINA_DE_ANCLA.get(hash) ?? null;
+}
+
+const ARCHIVO_DE_PAGINA = /^\/public\/(portal|noticias|categorias|calendario|ayuda)\.html$/;
+
+/** El href de PAGINAS_PORTAL que corresponde a la ruta (limpia o el .html que sirve el rewrite), o null. */
+export function paginaActual(ruta) {
+  const r = String(ruta ?? '').replace(/(.)\/+$/, '$1');
+  const m = r.match(ARCHIVO_DE_PAGINA);
+  if (m) return m[1] === 'portal' ? '/' : `/${m[1]}`;
+  return PAGINAS_PORTAL.some((p) => p.href === r) ? r : null;
+}
+
 /** Los calendarios que se pueden pedir: con un tipo conocido, un ID válido y la clave puesta. */
 export function calendariosActivos(agenda) {
   if (!claveValida(agenda?.clave)) return [];

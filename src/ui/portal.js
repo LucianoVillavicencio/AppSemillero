@@ -1,17 +1,18 @@
 import { html } from './html.js';
 import { $ } from './dom.js';
-import { formulariosPublicos, eventosDelMes } from '../data/repositorio.js';
+import { eventosDelMes } from '../data/repositorio.js';
 import {
   PORTAL, enlaceFormulario, enlaceContacto, sponsorsValidos, calendariosActivos, categoriasDelPortal,
   categoriasDelAnio, sedeValida, aliasValido, fotoValida,
 } from '../data/portal.js';
 import { temporadaComoAnio } from '../data/categorias.js';
-import { resolverFormularios, separarFormularios, accionesPrincipales } from '../data/formulariosPortal.js';
+import { accionesPrincipales } from '../data/formulariosPortal.js';
 import {
   eventosPorDia, proximosEventos, semanasDelMes, mesVecino, hoyEnRosario, tituloMes, fechaLarga,
   TIPOS_AGENDA, NOMBRE_TIPO, enlaceAgregarGoogle, textoIcs, enlacesSuscripcion, partesDeFecha, cuandoEs,
 } from '../data/agenda.js';
 import { destinoDeAuth } from '../data/entradaAuth.js';
+import { iniciarMarco, esconderBarraMientrasSeVea } from './portalMarco.js';
 
 /*
  * Portal "Básquet Newell's": la página pública que se reparte a las familias
@@ -521,20 +522,6 @@ function mostrar(id, contenido, contenedor = `portal-${id}`) {
   $(id).hidden = !texto.trim();
 }
 
-function iniciarCopiar() {
-  document.addEventListener('click', async (ev) => {
-    const b = ev.target.closest('[data-copiar]');
-    if (!b) return;
-    try {
-      await navigator.clipboard.writeText(b.dataset.copiar);
-      b.textContent = '¡Copiado!';
-    } catch {
-      // Sin permiso para el portapapeles: el alias queda a la vista para copiarlo a mano.
-      b.textContent = 'Copialo a mano';
-    }
-  });
-}
-
 export async function iniciarPortal() {
   const categorias = categoriasDelPortal(PORTAL.categorias, PORTAL.temporada);
   $('portal-categorias').innerHTML = htmlCategorias(categorias);
@@ -561,7 +548,6 @@ export async function iniciarPortal() {
 
   const calendarios = calendariosActivos(PORTAL.agenda);
   $('calendario').hidden = !calendarios.length;
-  iniciarCopiar();
 
   $('portal-atajos').innerHTML = htmlAtajos([
     !$('calendario').hidden && { clave: 'calendario', texto: 'Calendario', href: '#calendario' },
@@ -570,17 +556,19 @@ export async function iniciarPortal() {
     { clave: 'ayuda', texto: 'Ayuda', href: '#ayuda' },
   ].filter(Boolean));
 
+  esconderBarraMientrasSeVea($('portal-heroe'));
+  const marco = iniciarMarco();
+
   // Si la URL es la vuelta de un login, portalEntrada.js ya está mandando a la
-  // persona a /app. Acá no se consulta nada: el cliente de Supabase canjearía
-  // el ?code= o el #access_token en esta página, y la sesión es de /app.
+  // persona a /app: acá no se pide nada más (el marco tampoco lee la base).
   if (destinoDeAuth(window.location.search, window.location.hash)) return;
 
   if (calendarios.length) iniciarCalendario(calendarios);
 
-  const { estado, formularios } = await resolverFormularios(() => formulariosPublicos(PORTAL.clubId), PORTAL.formularios);
-
+  const datos = await marco;
+  if (!datos) return;
   // Los que tienen lugar propio (la banda, recaudación, colaborar) no se repiten en "Otros formularios".
-  const { inscripcion, comprobante, consultas, colaboradores, recaudacion, comunes } = separarFormularios(formularios);
+  const { estado, inscripcion, comprobante, consultas, colaboradores, recaudacion, comunes } = datos;
   pintarFormularios({ inscripcion, comprobante, consultas, colaboradores, recaudacion });
 
   const lista = htmlFormularios(comunes);

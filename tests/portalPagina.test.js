@@ -5,6 +5,7 @@ import {
   htmlFormularios, htmlAvisoRespaldo, htmlLogos, htmlHeroe, htmlAlias, htmlBuscador, htmlCategoriaDelAnio, htmlProximo,
   htmlRecaudacion, htmlColaborar, htmlAyuda, htmlAtajos, htmlCalendario, htmlCategorias, htmlFoto, diaInicial, htmlSuscripcion,
 } from '../src/ui/portal.js';
+import { PAGINAS_PORTAL } from '../src/data/portal.js';
 import { eventoDesdeGoogle, eventosPorDia, proximosEventos } from '../src/data/agenda.js';
 
 /**
@@ -38,14 +39,17 @@ test('ni la página ni su código dicen "Próximamente"', () => {
   assert.doesNotMatch(portal, /Próximamente/i);
 });
 
-test('el encabezado tiene Ayuda (a las preguntas frecuentes) y Semillero, con cómo instalarla', () => {
+test('el encabezado: la marca lleva al inicio, la navegación de las páginas y Semillero, con cómo instalarla', () => {
   const barra = pagina.match(/<header class="portal-barra">[\s\S]*?<\/header>/)[0];
-  assert.match(barra, /<a class="portal-barra-btn" href="#ayuda">Ayuda<\/a>/);
+  assert.match(barra, /<a class="portal-logo" href="\/">/);
+  const nav = barra.match(/<nav class="portal-nav" aria-label="Páginas del básquet">([\s\S]*?)<\/nav>/)[1];
+  assert.deepEqual([...nav.matchAll(/<a href="([^"]+)">([^<]+)<\/a>/g)].map((m) => [m[1], m[2]]), PAGINAS_PORTAL.map((p) => [p.href, p.texto]));
   const sem = barra.match(/<details class="portal-sem" id="semillero">[\s\S]*?<\/details>/)[0];
   assert.match(sem, /<summary[^>]*>Soy profe o jugador<\/summary>/);
   assert.match(sem, /<a class="btn" href="\/app">Entrar a Semillero<\/a>/);
   assert.match(sem, /Instalar app/);
   assert.match(sem, /Agregar a inicio/);
+  assert.match(pagina, /<div class="portal-acc-barra" id="portal-acc-barra" hidden><\/div>/, 'la barra arranca oculta');
 });
 
 test('Ayuda no ocupa lugar en la página: es una hoja (<dialog>) con la X, que abre todo link a #ayuda', () => {
@@ -104,12 +108,12 @@ test('portal.js sólo pide datos por el repositorio: ni repos/, ni cliente, ni S
   assert.doesNotMatch(readFileSync('src/ui/portalEntrada.js', 'utf8'), /repositorio/);
 });
 
-test('el portal no consulta nada si la URL es la vuelta de un login: esos links van a /app', () => {
+test('el inicio no pide nada si la URL es la vuelta de un login: esos links van a /app', () => {
   // El cliente de Supabase canjearía el ?code= o el #access_token en esta página.
-  assert.match(portal, /destinoDeAuth\(window\.location\.search, window\.location\.hash\)/);
-  const guarda = portal.indexOf('destinoDeAuth(');
-  assert.ok(guarda > 0 && guarda < portal.indexOf('resolverFormularios('), 'la guarda tiene que ir antes de leer la base');
-  assert.ok(guarda < portal.lastIndexOf('iniciarCalendario(calendarios)'), 'y antes de pedir el calendario');
+  // La lectura de formularios la guarda el marco (tests/portalMarco.test.js).
+  const guarda = portal.indexOf('destinoDeAuth(window.location.search, window.location.hash)');
+  assert.ok(guarda > 0 && guarda < portal.lastIndexOf('iniciarCalendario(calendarios)'), 'la guarda va antes de pedir el calendario');
+  assert.ok(portal.indexOf('iniciarMarco()') < guarda, 'el marco arranca antes (completa el pie aunque no lea la base)');
 });
 
 // ---- El hero: el título de la página y las dos tarjetas protagonistas ----
@@ -308,7 +312,7 @@ test('cada formulario muestra su línea de ayuda y abre en otra pestaña; uno co
 });
 
 test('el portal aparta los formularios con lugar propio: no aparecen dos veces', () => {
-  assert.match(portal, /const \{ inscripcion, comprobante, consultas, colaboradores, recaudacion, comunes \} = separarFormularios\(formularios\);/);
+  assert.match(portal, /const \{ estado, inscripcion, comprobante, consultas, colaboradores, recaudacion, comunes \} = datos;/);
   assert.match(portal, /htmlHeroe\(\{ inscripcion, consultas, comprobante,/);
   assert.match(portal, /htmlColaborar\(colaboradores\)/);
   assert.match(portal, /htmlRecaudacion\(recaudacion\)/);
