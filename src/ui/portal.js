@@ -6,7 +6,7 @@ import {
   categoriasDelAnio, sedeValida, aliasValido, fotoValida,
 } from '../data/portal.js';
 import { temporadaComoAnio } from '../data/categorias.js';
-import { resolverFormularios, separarFormularios } from '../data/formulariosPortal.js';
+import { resolverFormularios, separarFormularios, accionesPrincipales } from '../data/formulariosPortal.js';
 import {
   eventosPorDia, proximosEventos, semanasDelMes, mesVecino, hoyEnRosario, tituloMes, fechaLarga,
   TIPOS_AGENDA, NOMBRE_TIPO, enlaceAgregarGoogle, textoIcs, enlacesSuscripcion, partesDeFecha, cuandoEs,
@@ -72,11 +72,10 @@ function accion({ clase, icono, titulo, detalle, url, cerrado }) {
  * abajo. Son independientes: alguien se puede inscribir sin pagar nada.
  */
 export function htmlHeroe({ inscripcion = null, consultas = null, comprobante = null, temporada = null, alias = null } = {}) {
-  const url = (f) => (f ? enlaceFormulario(f.enlace) : null);
-  const ins = url(inscripcion);
-  const primera = ins
-    ? accion({ clase: 'principal', icono: 'inscribir', titulo: 'Inscribir a mi hijo o hija', url: ins, detalle: `Inscripción${temporada ? ` ${temporada}` : ''} abierta: formulario de Google` })
-    : accion({ clase: 'principal', icono: 'jugar', titulo: 'Quiero jugar en Newell\'s', url: url(consultas),
+  const { primera: p, comprobante: c } = accionesPrincipales({ inscripcion, consultas, comprobante });
+  const primera = p.tipo === 'inscribir'
+    ? accion({ clase: 'principal', icono: 'inscribir', titulo: 'Inscribir a mi hijo o hija', url: p.url, detalle: `Inscripción${temporada ? ` ${temporada}` : ''} abierta: formulario de Google` })
+    : accion({ clase: 'principal', icono: 'jugar', titulo: 'Quiero jugar en Newell\'s', url: p.url,
       detalle: 'Dejá tus datos y te contactamos para venir a probar', cerrado: 'Se habilita cuando abra el formulario' });
   return html`<div class="portal-heroe-ey">Formativas · Rosario${temporada ? html` · Temporada ${temporada}` : ''}</div>
     <h1>Básquet formativo de Newell's</h1>
@@ -84,7 +83,7 @@ export function htmlHeroe({ inscripcion = null, consultas = null, comprobante = 
     <div class="portal-acciones">
       ${primera}
       <div class="portal-pago">
-        ${accion({ clase: 'pago', icono: 'comprobante', titulo: 'Enviar comprobante', url: url(comprobante),
+        ${accion({ clase: 'pago', icono: 'comprobante', titulo: 'Enviar comprobante', url: c.url,
           detalle: 'Subí la foto de la transferencia', cerrado: 'Se habilita cuando haya algo para pagar' })}
         ${htmlAlias(alias)}
       </div>
