@@ -1,0 +1,202 @@
+/* =====================================================================
+   TOKENS — única fuente de verdad de color, tipografía y espaciado.
+   Destilado de css/tokens.css y css/app.css del prototipo (Etapa 3,
+   Decisión 2): la identidad gráfica no se rediseña.
+   Cambio respecto del prototipo: la escala tipográfica pasa de px a rem
+   (los NOMBRES se conservan para que el CSS portado siga funcionando).
+   ===================================================================== */
+
+/* ---- fuentes propias ----
+   Servidas desde public/fonts/ (subconjunto latin de @fontsource, licencia
+   SIL OFL 1.1: ver public/fonts/LICENCIAS.txt). Sólo los pesos que usa el CSS;
+   uno nuevo necesita su archivo, o el navegador lo inventa engrosando otro. */
+@font-face{font-family:'Barlow Condensed';font-weight:400;font-display:swap;src:url(/public/fonts/barlow-condensed-latin-400-normal.woff2) format('woff2')}
+@font-face{font-family:'Barlow Condensed';font-weight:500;font-display:swap;src:url(/public/fonts/barlow-condensed-latin-500-normal.woff2) format('woff2')}
+@font-face{font-family:'Barlow Condensed';font-weight:600;font-display:swap;src:url(/public/fonts/barlow-condensed-latin-600-normal.woff2) format('woff2')}
+@font-face{font-family:'Barlow Condensed';font-weight:700;font-display:swap;src:url(/public/fonts/barlow-condensed-latin-700-normal.woff2) format('woff2')}
+@font-face{font-family:'Inter';font-weight:400;font-display:swap;src:url(/public/fonts/inter-latin-400-normal.woff2) format('woff2')}
+@font-face{font-family:'Inter';font-weight:500;font-display:swap;src:url(/public/fonts/inter-latin-500-normal.woff2) format('woff2')}
+@font-face{font-family:'Inter';font-weight:600;font-display:swap;src:url(/public/fonts/inter-latin-600-normal.woff2) format('woff2')}
+@font-face{font-family:'Inter';font-weight:700;font-display:swap;src:url(/public/fonts/inter-latin-700-normal.woff2) format('woff2')}
+@font-face{font-family:'IBM Plex Mono';font-weight:500;font-display:swap;src:url(/public/fonts/ibm-plex-mono-latin-500-normal.woff2) format('woff2')}
+@font-face{font-family:'IBM Plex Mono';font-weight:600;font-display:swap;src:url(/public/fonts/ibm-plex-mono-latin-600-normal.woff2) format('woff2')}
+
+:root{
+  /* ---- marca: el color del club ----
+     --club y --sobre-club son LOS ÚNICOS dos valores que cambia un club (el
+     texto que va encima del color, blanco o negro, lo elige quien carga el
+     color: sólo él sabe cuál llega a 4.5:1). Todo lo demás sale de ahí.
+     Los tres derivados llevan un valor literal de respaldo, el del color por
+     defecto: sin color-mix (Android WebView anterior a Chrome 111) el
+     derivado quedaría inválido y el botón apretado se vería transparente. */
+  --club:#D9122E;
+  --sobre-club:#fff;
+  --primario:var(--club);
+  --primario-osc:#A00D22;                    /* apretado y hover */
+  --primario-cl:#FFEBEE;                     /* fondo suave */
+  --primario-tenue:#FBE5E8;                  /* fondo de una etiqueta del club */
+
+  /* ---- neutros ---- */
+  --negro:#131316;
+  --papel:#F3F1ED;
+  --blanco:#fff;
+  --linea:#DFDBD3;
+  --borde-control:#85817A; /* 3.4:1 sobre --papel y 3.9:1 sobre blanco: el límite de un campo o botón de elección, que a pleno sol tiene que verse (--linea es sólo separador) */
+  --tinta:#131316;
+  --gris:#6E6B66;
+  --gris-cl:#726E65;      /* 4.50:1 sobre --papel */
+  --gris-osc:#A9A5A0;     /* sobre fondo oscuro */
+  --sobre-oscuro:#fff;    /* texto sobre --negro y --sup-* */
+  --fondo-chip:#EFECE6;   /* chips, etiquetas y fondos de ícono en reposo */
+  --deshabilitado:#C9C5BE;
+  --negro-puro:#000;      /* letterbox del video */
+  --placeholder-osc:#9A968E; /* 4.70:1 sobre --sup-2: un placeholder también es texto */
+
+  /* ---- superficies sobre fondo oscuro ---- */
+  --sup-1:#22222A;
+  --sup-2:#2C2C34;
+  --linea-osc:#3A3A44;    /* borde sobre fondo oscuro: el par de --linea */
+
+  /* ---- superficies de la landing y la autenticación ----
+     Más profundas que --negro/--sup-1 (que siguen siendo las de la app por
+     dentro): la separación entre fondo, tarjeta y borde da profundidad sin
+     sombras, que sobre oscuro no se ven. --gris-osc sobre --pub-tarjeta da
+     7.4:1 (lo verifica tests/estilosTokens.test.js). */
+  --pub-fondo:#0D0D10;
+  --pub-tarjeta:#17171C;
+  --pub-borde:#2B2B34;
+
+  /* ---- calendario del portal: un color por tipo de evento (un calendario de
+     Google por tipo). Sólo pintan puntitos, filetes y cuadraditos de la
+     leyenda: el texto del evento va en --sobre-oscuro / --gris-osc, porque
+     el rojo del club no llega a 4.5:1 sobre --pub-tarjeta. */
+  --agenda-partido:var(--club);
+  --agenda-evento:#F2B33D;
+  --agenda-charla:#5AB4F0;
+  --agenda-entrenamiento:var(--sube-osc);
+
+  /* ---- semántico ---- */
+  --sube:#15794F;
+  --baja:#985E0C;
+  --aviso:#7A4E00;        /* franja de "datos de ejemplo" */
+  --aviso-fondo:#FFE9A8;  /* 8.4:1 con --aviso */
+  --sube-fondo:#E1F0E9;
+  --sube-osc:#4FD69C;     /* "sube" sobre fondo oscuro (landing): 9:1 sobre --pub-tarjeta */
+  --baja-fondo:#F6ECD9;
+
+  /* ---- trazos de la pizarra: un color por tipo de acción, igual en la
+     barra, la cancha, el visor y el PNG exportado. Todos ≥4.5:1 sobre
+     --papel (tests/estilosTokens.test.js no lo mide, se comprobó a mano).
+     --trazo-tiro es --primario (el rojo del club) directo: no tiene
+     variante de oscuro propia, ya la hereda de --club si el club la cambia. */
+  --trazo-corte:#1E7D46;
+  --trazo-dribbling:#7D6100;
+  --trazo-pase:#1B57A8;
+  --trazo-cortina:#6B3FA0;
+  --trazo-tiro:var(--primario);
+  --trazo-handoff:#B8306F;
+
+  /* ---- sombra / radio ---- */
+  --sombra:0 1px 2px rgba(19,19,22,.05),0 6px 18px rgba(19,19,22,.05);
+  --sombra-alta:0 2px 4px rgba(19,19,22,.10),0 10px 26px rgba(19,19,22,.14);
+  /* Brillo del color del club: anillo + resplandor. Van en un ::after que sólo
+     cambia de opacity (nunca se anima el box-shadow). */
+  --brillo-club:0 0 0 1px var(--primario),0 10px 28px -6px var(--primario);
+  --anillo-club:0 0 0 1px var(--primario),0 8px 20px -10px var(--primario);
+  --r:0.6875rem;
+  --r-btn:0.125rem;       /* botones: casi rectos, como el sitio del club */
+  --r-s:0.3125rem;        /* chips y etiquetas */
+  --r-m:0.5625rem;        /* campos y píldoras de categoría */
+  --r-full:999px;
+
+  /* ---- capas translúcidas ---- */
+  --velo:rgba(19,19,22,.5);
+  --toque-claro:rgba(19,19,22,.06);    /* hover de un secundario sobre papel */
+  --toque-osc:rgba(255,255,255,.08);   /* hover sobre fondo oscuro */
+  --presion-osc:rgba(255,255,255,.12); /* apretado sobre fondo oscuro */
+
+  /* ---- botón de Google: los colores los fija su guía de marca ---- */
+  --google-texto:#1F1F1F;
+  --google-hover:#EDEDED;
+
+  /* ---- tipografías ---- */
+  --ff-titulo:'Barlow Condensed',system-ui,sans-serif;
+  --ff-cuerpo:'Inter',system-ui,sans-serif;
+  --ff-mono:'IBM Plex Mono',ui-monospace,monospace;
+
+  /* ---- escala tipográfica (mismos nombres que el prototipo, en rem) ---- */
+  --fs-100:0.75rem;
+  --fs-115:0.75rem;
+  --fs-125:0.781rem;
+  --fs-135:0.844rem;
+  --fs-145:0.906rem;
+  --fs-160:1rem;
+  --fs-170:1.0625rem;
+  --fs-190:1.1875rem;
+  --fs-200:1.25rem;
+  --fs-220:1.375rem;
+  --fs-230:1.4375rem;
+  --fs-250:1.5625rem;
+  --fs-260:1.625rem;
+  --fs-300:1.875rem;
+
+  /* ---- títulos fluidos ---- */
+  --fs-cifra:clamp(2.5rem,2rem + 2.4vw,3.5rem);   /* el número héroe de una card */
+  --fs-titulo:clamp(1.5rem,1.25rem + 1.2vw,2rem);
+  --fs-titulo-chico:clamp(1.5rem,1.3rem + 1vw,2rem);
+
+  /* ---- espaciado ---- */
+  --sp-1:0.25rem;
+  --sp-2:0.5rem;
+  --sp-3:0.75rem;
+  --sp-4:1rem;
+  --sp-5:1.25rem;
+  --sp-6:1.5rem;
+  --sp-8:2rem;
+
+  /* ---- movimiento ----
+     Sólo se anima transform y opacity (lo hace el compositor, sin repintar):
+     lo verifica tests/estilosTokens.test.js. Nada de width, height,
+     box-shadow, background ni transition:all. Con prefers-reduced-motion
+     base.css apaga todo. */
+  --dur-1:120ms;          /* feedback al apretar */
+  --dur-2:200ms;          /* entrada de pantalla, toast, velo */
+  --dur-3:280ms;          /* hoja y barras */
+  --dur-demo:1400ms;       /* demos de la landing: una vez al entrar en pantalla */
+  --dur-giro:25s;         /* una vuelta del anillo del escudo (landing) */
+  --ease-salida:cubic-bezier(.16,1,.3,1);   /* frena al llegar: entra */
+  --ease-entrada:cubic-bezier(.3,0,.8,.15); /* acelera al irse: sale */
+
+  /* ---- layout ---- */
+  --tap:2.75rem;          /* 44px: mínimo táctil del layout base */
+  --max-ancho:52rem;      /* 832px: una sola columna. Elegido mirando contra 46
+                             y 58: a 46 sobra margen a 1900px; a 58 la barra de
+                             una zona vuelve a ser una cinta de 830px. */
+  --lateral-w:14rem;      /* navegación lateral a partir de 1024px */
+}
+
+/* Derivados del color del club. El 73,7 % en srgb da exactamente #A00D22 con el
+   rojo por defecto; el 9 % en oklab da #FFEDEC (a 2 unidades de #FFEBEE, que
+   no es un tinte puro del rojo). Con otro --club, oklab reparte el claro y el
+   oscuro parejo entre tonos. */
+@supports (color:color-mix(in oklab,red,blue)){
+  :root{
+    --primario-osc:color-mix(in srgb,var(--club) 73.7%,black);
+    --primario-cl:color-mix(in oklab,var(--club) 9%,white);
+    --primario-tenue:color-mix(in srgb,var(--club) 11%,white);
+  }
+}
+
+/* La app por dentro no tiene tema oscuro (DESIGN.md); la cancha sí, porque se
+   usa con cualquier brillo. Sólo estos seis tokens cambian: el resto de la
+   pizarra (--papel, --tinta, --gris...) es el mismo valor con cualquier
+   prefers-color-scheme. */
+@media (prefers-color-scheme:dark){
+  :root{
+    --trazo-corte:#3FCB7E;
+    --trazo-dribbling:#E0B400;
+    --trazo-pase:#5B9CF0;
+    --trazo-cortina:#B085E0;
+    --trazo-handoff:#F075AE;
+  }
+}

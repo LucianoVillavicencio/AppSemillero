@@ -1,0 +1,590 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import {
+  prepararPayloadPlanFisico,
+  nombresPorResolver,
+  bibliotecaParaElegir,
+  decisionDesdeOpcion,
+} from '../src/data/prepararPayloadPlanFisico.js';
+import { clavearNombre } from '../src/parser/parserCabb.js';
+
+/*
+ * La entrada de esta función es lo que devuelve parsearPlanFisico (contrato
+ * "1.0", ver la cabecera de src/parser/parserFisico.js). Los helpers de acá
+ * arman esa forma a mano: el parser no se toca ni se ejecuta en estos tests,
+ * que son sobre la reconciliación y el armado del payload.
+ */
+
+const CONTEXTO = {
+  clubId: 'club-1',
+  plantelId: 'plantel-1',
+  nombreArchivo: 'Fisico.xlsx',
+  hashArchivo: 'hash-1',
+};
+
+// Una entrada de la hoja "Ejercicios" del archivo.
+const enBiblioteca = (nombre, extra = {}) => ({
+  clave: clavearNombre(nombre),
+  nombre,
+  bloque: 'FUERZA',
+  link: 'https://example.com/' + clavearNombre(nombre).toLowerCase().replace(/\s+/g, '-'),
+  fila: 2,
+  ...extra,
+});
+
+// Una fila de ejercicio de una rutina. `referencia` es la entrada de la
+// biblioteca del ARCHIVO, tal como la deja el parser (o null).
+const ejercicio = (nombreOriginal, extra = {}) => ({
+  hoja: 'Abril (Fuerza)',
+  columna: 0,
+  fila: 3,
+  fecha: '2026-04-06',
+  diaSemana: 'lunes',
+  bloque: 'FUERZA',
+  orden: 1,
+  nombreOriginal,
+  nombreClave: clavearNombre(nombreOriginal),
+  referencia: null,
+  series: 4,
+  reps: '8',
+  cargaSugerida: 'PC',
+  pausa: "60''",
+  notas: null,
+  escalonKg: null,
+  ...extra,
+});
+
+const sesion = (fecha, ejercicios) => ({
+  hoja: 'Abril (Fuerza)',
+  columna: 0,
+  fila: 1,
+  fecha,
+  diaSemana: 'lunes',
+  bloques: ['FUERZA'],
+  ejercicios,
+});
+
+const resultado = (extra = {}) => ({
+  contrato: '1.0',
+  exito: true,
+  origen: { archivo: 'Fisico.xlsx', hojasFuerza: ['Abril (Fuerza)'], hojaBiblioteca: 'Ejercicios', hojasIgnoradas: [] },
+  biblioteca: [],
+  sesiones: [],
+  sinMatchear: [],
+  advertencias: [],
+  errores: [],
+  ...extra,
+});
+
+const ejerciciosDel = (payload) => payload.sesiones.flatMap((s) => s.ejercicios);
+
+/* ---------- la biblioteca del archivo contra la del club ---------- */
+
+test('lo que ya está en la biblioteca del club se reusa: no se crea nada y los ejercicios van con su id', () => {
+  const press = enBiblioteca('Press Plano (Manc)');
+  const r = resultado({
+    biblioteca: [press],
+    sesiones: [sesion('2026-04-06', [ejercicio('Press Plano (Manc)', { referencia: press })])],
+  });
+  const club = [{ id: 'ej-press', clave: press.clave, nombre: press.nombre, bloque: 'FUERZA', link: null }];
+
+  const { error, payload, resumen } = prepararPayloadPlanFisico(r, club, {}, CONTEXTO);
+
+  assert.equal(error, null);
+  assert.deepEqual(payload.ejerciciosNuevos, []);
+  assert.equal(ejerciciosDel(payload)[0].ejercicioFuerzaId, 'ej-press');
+  assert.equal(ejerciciosDel(payload)[0].claveNueva, null);
+  assert.equal(resumen.ejerciciosNuevos, 0);
+  assert.equal(resumen.pendientes, 0);
+});
+
+test('lo que el archivo trae y el club no tiene se da de alta una sola vez, aunque aparezca en varias sesiones', () => {
+  const bulgara = enBiblioteca('Sentadilla Búlgara');
+  const r = resultado({
+    biblioteca: [bulgara],
+    sesiones: [
+      sesion('2026-04-06', [ejercicio('Sentadilla Búlgara', { referencia: bulgara })]),
+      sesion('2026-04-09', [ejercicio('Sentadilla Búlgara', { referencia: bulgara, orden: 2 })]),
+    ],
+  });
+
+  const { error, payload } = prepararPayloadPlanFisico(r, [], {}, CONTEXTO);
+
+  assert.equal(error, null);
+  assert.equal(payload.ejerciciosNuevos.length, 1);
+  assert.deepEqual(payload.ejerciciosNuevos[0], {
+    clave: bulgara.clave,
+    nombre: bulgara.nombre,
+    bloque: bulgara.bloque,
+    link: bulgara.link,
+  });
+  for (const e of ejerciciosDel(payload)) {
+    assert.equal(e.ejercicioFuerzaId, null);
+    assert.equal(e.claveNueva, bulgara.clave);
+  }
+});
+
+test('la biblioteca del archivo se reconcilia por nombre normalizado, no por texto exacto', () => {
+  const entrada = enBiblioteca('Sentadilla  BÚLGARA');
+  const r = resultado({
+    biblioteca: [entrada],
+    sesiones: [sesion('2026-04-06', [ejercicio('Sentadilla  BÚLGARA', { referencia: entrada })])],
+  });
+  const club = [{ id: 'ej-bulgara', clave: clavearNombre('Sentadilla Búlgara'), nombre: 'Sentadilla Búlgara', bloque: 'FUERZA', link: null }];
+
+  const { error, payload } = prepararPayloadPlanFisico(r, club, {}, CONTEXTO);
+
+  assert.equal(error, null);
+  assert.deepEqual(payload.ejerciciosNuevos, []);
+  assert.equal(ejerciciosDel(payload)[0].ejercicioFuerzaId, 'ej-bulgara');
+});
+
+/* ---------- el ejercicio de sesión contra la biblioteca del club ---------- */
+
+test('un nombre que la hoja del archivo no trae pero el club sí, coincidiendo exacto, se resuelve solo', () => {
+  // Mismo criterio que contra la hoja del archivo: coincidencia exacta sobre el
+  // nombre normalizado, sin decisión del profe.
+  const r = resultado({
+    sesiones: [sesion('2026-04-06', [ejercicio('press  PLANO'), ejercicio('Press Plano', { orden: 2 })])],
+  });
+  const club = [{ id: 'ej-press', clave: clavearNombre('Press Plano'), nombre: 'Press Plano', bloque: 'FUERZA', link: null }];
+
+  const { error, payload, resumen } = prepararPayloadPlanFisico(r, club, {}, CONTEXTO);
+
+  assert.equal(error, null);
+  for (const e of ejerciciosDel(payload)) {
+    assert.equal(e.ejercicioFuerzaId, 'ej-press');
+    assert.equal(e.claveNueva, null);
+  }
+  assert.deepEqual(payload.ejerciciosNuevos, []);
+  assert.equal(resumen.pendientes, 0);
+});
+
+test('contra la biblioteca del club no hay parecidos: un nombre que no coincide exacto queda pendiente', () => {
+  const r = resultado({
+    sesiones: [sesion('2026-04-06', [ejercicio('Press Plano Inclinado'), ejercicio('Pres Plano', { orden: 2 })])],
+  });
+  const club = [{ id: 'ej-press', clave: clavearNombre('Press Plano'), nombre: 'Press Plano', bloque: 'FUERZA', link: null }];
+
+  const { error, payload, resumen } = prepararPayloadPlanFisico(r, club, {}, CONTEXTO);
+
+  assert.equal(error, null);
+  for (const e of ejerciciosDel(payload)) assert.equal(e.ejercicioFuerzaId, null);
+  assert.equal(resumen.pendientes, 2);
+});
+
+test('un nombre repetido en la hoja del archivo (ambiguo para el parser) se resuelve si coincide exacto en el club', () => {
+  // El parser deja la referencia en null porque en la hoja hay dos filas con
+  // esa clave; en el club la clave es única, así que ahí no hay duda.
+  const r = resultado({
+    biblioteca: [enBiblioteca('Remo', { fila: 2 }), enBiblioteca('REMO', { fila: 9 })],
+    sesiones: [sesion('2026-04-06', [ejercicio('Remo')])],
+  });
+  const club = [{ id: 'ej-remo', clave: clavearNombre('Remo'), nombre: 'Remo', bloque: 'FUERZA', link: null }];
+
+  const { error, payload } = prepararPayloadPlanFisico(r, club, {}, CONTEXTO);
+
+  assert.equal(error, null);
+  assert.equal(ejerciciosDel(payload)[0].ejercicioFuerzaId, 'ej-remo');
+  assert.deepEqual(payload.ejerciciosNuevos, []);
+});
+
+/* ---------- las decisiones del profe ---------- */
+
+test('una decisión "existente" resuelve todas las apariciones del mismo nombre', () => {
+  const filas = [1, 2, 3, 4, 5, 6].map((orden) => ejercicio('Press Plano', { orden }));
+  const r = resultado({ sesiones: [sesion('2026-04-06', filas)] });
+  // En el club está con otro nombre: sin la decisión, no coincidiría.
+  const club = [{ id: 'ej-press', clave: clavearNombre('Press Plano con Mancuernas'), nombre: 'Press Plano con Mancuernas', bloque: 'FUERZA', link: null }];
+  const decisiones = { porClave: { [clavearNombre('Press Plano')]: { tipo: 'existente', ejercicioId: 'ej-press' } } };
+
+  const { error, payload, resumen } = prepararPayloadPlanFisico(r, club, decisiones, CONTEXTO);
+
+  assert.equal(error, null);
+  assert.equal(ejerciciosDel(payload).length, 6);
+  for (const e of ejerciciosDel(payload)) assert.equal(e.ejercicioFuerzaId, 'ej-press');
+  assert.equal(resumen.pendientes, 0);
+});
+
+test('una decisión "nueva" suma un alta con su clave normalizada y los ejercicios la referencian por claveNueva', () => {
+  const r = resultado({
+    sesiones: [sesion('2026-04-06', [ejercicio('Hip thrust'), ejercicio('Hip  THRUST', { orden: 2 })])],
+  });
+  const decisiones = {
+    porClave: {
+      [clavearNombre('Hip thrust')]: { tipo: 'nueva', nombre: 'Hip Thrust', bloque: 'POTENCIA', link: 'https://example.com/hip' },
+    },
+  };
+
+  const { error, payload, resumen } = prepararPayloadPlanFisico(r, [], decisiones, CONTEXTO);
+
+  assert.equal(error, null);
+  assert.deepEqual(payload.ejerciciosNuevos, [
+    { clave: clavearNombre('Hip Thrust'), nombre: 'Hip Thrust', bloque: 'POTENCIA', link: 'https://example.com/hip' },
+  ]);
+  for (const e of ejerciciosDel(payload)) {
+    assert.equal(e.claveNueva, clavearNombre('Hip Thrust'));
+    assert.equal(e.ejercicioFuerzaId, null);
+  }
+  assert.equal(resumen.ejerciciosNuevos, 1);
+});
+
+test('sin decisión, el ejercicio queda pendiente y conserva su nombre original', () => {
+  const r = resultado({ sesiones: [sesion('2026-04-06', [ejercicio('Ejercicio Raro del Profe')])] });
+
+  const { error, payload, resumen } = prepararPayloadPlanFisico(r, [], {}, CONTEXTO);
+
+  assert.equal(error, null);
+  const [e] = ejerciciosDel(payload);
+  assert.equal(e.ejercicioFuerzaId, null);
+  assert.equal(e.claveNueva, null);
+  assert.equal(e.nombreOriginal, 'Ejercicio Raro del Profe');
+  assert.equal(resumen.pendientes, 1);
+});
+
+test('un alta nueva que choca con una de la biblioteca del club es error: hay que elegir la existente', () => {
+  // El nombre del archivo no coincide con nada; el que escribe el profe para el
+  // alta, sí.
+  const r = resultado({ sesiones: [sesion('2026-04-06', [ejercicio('Press Pl. Manc')])] });
+  const club = [{ id: 'ej-press', clave: clavearNombre('Press Plano'), nombre: 'Press Plano', bloque: 'FUERZA', link: null }];
+  const decisiones = {
+    porClave: { [clavearNombre('Press Pl. Manc')]: { tipo: 'nueva', nombre: 'press plano', bloque: 'FUERZA', link: null } },
+  };
+
+  const { error, payload } = prepararPayloadPlanFisico(r, club, decisiones, CONTEXTO);
+
+  assert.match(error, /press plano/i);
+  assert.equal(payload, null);
+});
+
+test('una decisión que apunta a un ejercicio que no está en la biblioteca del club es error', () => {
+  const r = resultado({ sesiones: [sesion('2026-04-06', [ejercicio('Press Plano')])] });
+  const decisiones = { porClave: { [clavearNombre('Press Plano')]: { tipo: 'existente', ejercicioId: 'ej-fantasma' } } };
+
+  const { error, payload } = prepararPayloadPlanFisico(r, [], decisiones, CONTEXTO);
+
+  assert.match(error, /ej-fantasma/);
+  assert.equal(payload, null);
+});
+
+/* ---------- lo que no se importa ---------- */
+
+test('un parser con errores no se importa', () => {
+  const r = resultado({
+    exito: false,
+    errores: [{ hoja: null, fila: null, campo: null, mensaje: '[SIN_HOJAS_FUERZA] ninguna hoja tiene "(Fuerza)" en el nombre' }],
+    sesiones: [sesion('2026-04-06', [ejercicio('Press Plano')])],
+  });
+
+  const { error, payload } = prepararPayloadPlanFisico(r, [], {}, CONTEXTO);
+
+  assert.match(error, /SIN_HOJAS_FUERZA/);
+  assert.equal(payload, null);
+});
+
+test('una sesión sin fecha es error, y el mensaje dice cuántas son', () => {
+  const r = resultado({
+    sesiones: [
+      sesion('2026-04-06', [ejercicio('Press Plano')]),
+      sesion(null, [ejercicio('Press Plano')]),
+      sesion(null, [ejercicio('Press Plano')]),
+    ],
+  });
+
+  const { error, payload } = prepararPayloadPlanFisico(r, [], {}, CONTEXTO);
+
+  assert.match(error, /2/);
+  assert.equal(payload, null);
+});
+
+test('un plan sin sesiones es error, no un import vacío', () => {
+  const { error, payload } = prepararPayloadPlanFisico(resultado(), [], {}, CONTEXTO);
+
+  assert.ok(error);
+  assert.equal(payload, null);
+});
+
+test('falta clubId, plantelId o hashArchivo: error', () => {
+  const r = resultado({ sesiones: [sesion('2026-04-06', [ejercicio('Press Plano')])] });
+  for (const campo of ['clubId', 'plantelId', 'hashArchivo']) {
+    const contexto = { ...CONTEXTO, [campo]: null };
+    const { error, payload } = prepararPayloadPlanFisico(r, [], {}, contexto);
+    assert.match(error, new RegExp(campo), `tendría que quejarse por ${campo}`);
+    assert.equal(payload, null);
+  }
+});
+
+/* ---------- el dato pasa tal cual ---------- */
+
+test('series, reps, carga y pausa pasan como vienen: el texto no se convierte a número', () => {
+  const r = resultado({
+    sesiones: [sesion('2026-04-06', [
+      ejercicio('Sentadilla', { series: 4, reps: '5xL', cargaSugerida: 'PC', pausa: "45''", notas: 'baja controlado' }),
+      ejercicio('Plancha', { orden: 2, series: null, reps: "30''", cargaSugerida: null, pausa: null, notas: null }),
+    ])],
+  });
+
+  const { error, payload } = prepararPayloadPlanFisico(r, [], {}, CONTEXTO);
+
+  assert.equal(error, null);
+  const [uno, dos] = ejerciciosDel(payload);
+  assert.equal(uno.reps, '5xL');
+  assert.equal(uno.cargaSugerida, 'PC');
+  assert.equal(uno.pausa, "45''");
+  assert.equal(uno.notas, 'baja controlado');
+  assert.equal(uno.series, 4);
+  assert.equal(dos.reps, "30''");
+  assert.equal(dos.series, null);
+  assert.equal(dos.cargaSugerida, null);
+});
+
+test('el payload no lleva escalón de carga: lo pone el profe después, por jugador', () => {
+  const r = resultado({
+    sesiones: [sesion('2026-04-06', [ejercicio('Sentadilla', { escalonKg: 40 })])],
+  });
+
+  const { error, payload } = prepararPayloadPlanFisico(r, [], {}, CONTEXTO);
+
+  assert.equal(error, null);
+  assert.equal('escalonKg' in ejerciciosDel(payload)[0], false);
+  assert.equal('escalon_kg' in ejerciciosDel(payload)[0], false);
+});
+
+test('el payload lleva el contexto y las advertencias del parser tal cual', () => {
+  const advertencias = [{ hoja: 'Abril (Fuerza)', fila: 7, campo: 'bloque', mensaje: '[SIN_BLOQUE] "Plancha" no tiene bloque' }];
+  const r = resultado({ advertencias, sesiones: [sesion('2026-04-06', [ejercicio('Sentadilla')])] });
+
+  const { payload, resumen } = prepararPayloadPlanFisico(r, [], {}, CONTEXTO);
+
+  assert.equal(payload.clubId, 'club-1');
+  assert.equal(payload.plantelId, 'plantel-1');
+  assert.equal(payload.nombreArchivo, 'Fisico.xlsx');
+  assert.equal(payload.hashArchivo, 'hash-1');
+  assert.deepEqual(payload.advertencias, advertencias);
+  assert.deepEqual(payload.sesiones.map((s) => s.fecha), ['2026-04-06']);
+  assert.deepEqual(resumen, { sesiones: 1, ejercicios: 1, pendientes: 1, ejerciciosNuevos: 0, pesosIniciales: 0 });
+});
+
+/* ---------- nunca lanza ---------- */
+
+test('con entradas basura devuelve error, no excepción', () => {
+  const basura = [
+    [null, null, null, null],
+    [undefined, [], {}, CONTEXTO],
+    ['no soy un resultado', [], {}, CONTEXTO],
+    [resultado({ sesiones: [sesion('2026-04-06', [ejercicio('X')])] }), null, null, null],
+    [resultado({ sesiones: 'ninguna' }), [], {}, CONTEXTO],
+    [resultado({ sesiones: [null] }), [], {}, CONTEXTO],
+    [resultado({ sesiones: [sesion('2026-04-06', null)] }), [], {}, CONTEXTO],
+    [resultado({ sesiones: [sesion('2026-04-06', [ejercicio('X')])] }), [], { porClave: 'nada' }, CONTEXTO],
+    [resultado({ sesiones: [sesion('2026-04-06', [ejercicio('X')])] }), [], { porClave: { X: { tipo: 'otra cosa' } } }, CONTEXTO],
+  ];
+  for (const argumentos of basura) {
+    const r = prepararPayloadPlanFisico(...argumentos);
+    assert.ok(r.error, 'tendría que devolver error');
+    assert.equal(r.payload, null);
+  }
+});
+
+/* ---------- lo que la pantalla le muestra al profe ---------- */
+
+test('nombresPorResolver deja afuera lo que se resolvió solo, en el archivo o en el club', () => {
+  const press = enBiblioteca('Press Plano');
+  const r = resultado({
+    biblioteca: [press],
+    sesiones: [
+      sesion('2026-04-06', [
+        ejercicio('Press Plano', { referencia: press }),   // resuelto por la hoja
+        ejercicio('Remo', { orden: 2 }),                    // resuelto por el club
+        ejercicio('Hip thrust', { orden: 3 }),              // sin resolver
+      ]),
+    ],
+  });
+  const club = [{ id: 'ej-remo', clave: clavearNombre('Remo'), nombre: 'Remo', bloque: 'FUERZA', link: null }];
+
+  assert.deepEqual(nombresPorResolver(r, club).map((n) => n.nombreClave), [clavearNombre('Hip thrust')]);
+});
+
+test('nombresPorResolver agrupa por nombre normalizado, cuenta apariciones y respeta el orden del archivo', () => {
+  const r = resultado({
+    sesiones: [
+      sesion('2026-04-06', [ejercicio('Hip thrust'), ejercicio('Plancha', { orden: 2 })]),
+      sesion('2026-04-09', [ejercicio('HIP  Thrust'), ejercicio('Hip thrust', { orden: 2 })]),
+    ],
+  });
+
+  assert.deepEqual(nombresPorResolver(r, []), [
+    { nombreClave: clavearNombre('Hip thrust'), nombresOriginales: ['Hip thrust', 'HIP  Thrust'], apariciones: 3 },
+    { nombreClave: clavearNombre('Plancha'), nombresOriginales: ['Plancha'], apariciones: 1 },
+  ]);
+});
+
+test('nombresPorResolver con entradas basura devuelve una lista vacía, no una excepción', () => {
+  for (const r of [null, undefined, 'x', resultado({ sesiones: 'x' }), resultado({ sesiones: [null, { ejercicios: null }] })]) {
+    assert.deepEqual(nombresPorResolver(r, null), []);
+  }
+});
+
+test('bibliotecaParaElegir ofrece el club y las altas que trae el archivo, sin repetir y en orden alfabético', () => {
+  const r = resultado({
+    biblioteca: [enBiblioteca('Remo'), enBiblioteca('Sentadilla Búlgara')],
+    sesiones: [sesion('2026-04-06', [ejercicio('X')])],
+  });
+  const club = [
+    { id: 'ej-remo', clave: clavearNombre('Remo'), nombre: 'Remo', bloque: 'FUERZA', link: null },
+    { id: 'ej-banco', clave: clavearNombre('Banco Plano'), nombre: 'Banco Plano', bloque: 'FUERZA', link: null },
+  ];
+
+  const opciones = bibliotecaParaElegir(r, club, {});
+
+  assert.deepEqual(opciones.map((o) => [o.nombre, o.id]), [
+    ['Banco Plano', 'ej-banco'],
+    ['Remo', 'ej-remo'],                 // el del club gana: ya tiene id
+    ['Sentadilla Búlgara', null],        // todavía no está en la base
+  ]);
+});
+
+test('bibliotecaParaElegir suma las altas nuevas que ya decidió el profe', () => {
+  const r = resultado({ sesiones: [sesion('2026-04-06', [ejercicio('Hip thrust')])] });
+  const decisiones = { porClave: { [clavearNombre('Hip thrust')]: { tipo: 'nueva', nombre: 'Hip Thrust', bloque: 'POTENCIA', link: null } } };
+
+  assert.deepEqual(bibliotecaParaElegir(r, [], decisiones).map((o) => o.nombre), ['Hip Thrust']);
+});
+
+test('elegir una alta que todavía no está en la base la reusa: no se da de alta dos veces', () => {
+  const bulgara = enBiblioteca('Sentadilla Búlgara');
+  const r = resultado({
+    biblioteca: [bulgara],
+    sesiones: [sesion('2026-04-06', [
+      ejercicio('Sentadilla Búlgara', { referencia: bulgara }),
+      ejercicio('Búlgara c/ manc', { orden: 2 }),
+    ])],
+  });
+  const opcion = bibliotecaParaElegir(r, [], {}).find((o) => o.clave === bulgara.clave);
+  const decisiones = { porClave: { [clavearNombre('Búlgara c/ manc')]: decisionDesdeOpcion(opcion) } };
+
+  const { error, payload, resumen } = prepararPayloadPlanFisico(r, [], decisiones, CONTEXTO);
+
+  assert.equal(error, null);
+  assert.equal(payload.ejerciciosNuevos.length, 1);
+  for (const e of ejerciciosDel(payload)) assert.equal(e.claveNueva, bulgara.clave);
+  assert.equal(resumen.pendientes, 0);
+});
+
+test('decisionDesdeOpcion: con id es "existente"; sin id, "nueva" con los datos de la opción', () => {
+  assert.deepEqual(
+    decisionDesdeOpcion({ id: 'ej-remo', clave: 'REMO', nombre: 'Remo', bloque: 'FUERZA', link: null }),
+    { tipo: 'existente', ejercicioId: 'ej-remo' });
+  assert.deepEqual(
+    decisionDesdeOpcion({ id: null, clave: 'REMO', nombre: 'Remo', bloque: 'FUERZA', link: 'https://x' }),
+    { tipo: 'nueva', nombre: 'Remo', bloque: 'FUERZA', link: 'https://x' });
+});
+
+test('la pantalla lista los pendientes con nombresPorResolver, no con sinMatchear crudo del parser', () => {
+  const fuente = readFileSync(new URL('../src/ui/pantallas/planFisico.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(fuente, /\.sinMatchear\b/,
+    'sinMatchear sólo sabe del archivo: listaría como pendientes nombres que el club ya tiene');
+  assert.match(fuente, /nombresPorResolver\(/);
+});
+
+test('la pantalla del plan físico no habla de deuda: un ejercicio sin video es un ejercicio normal', () => {
+  // La hoja "Ejercicios" del archivo es un anexo de videos, no un catálogo:
+  // lo que no está ahí no es un problema a arreglar. Se descuentan el nombre de
+  // la función pura y la clave `pendientes` del resumen y de la RPC (0021):
+  // son contratos de la capa de datos, no texto que lea el profe.
+  const fuente = readFileSync(new URL('../src/ui/pantallas/planFisico.js', import.meta.url), 'utf8')
+    .replace(/nombresPorResolver/g, '')
+    .replace(/\.pendientes\b/g, '');
+  assert.doesNotMatch(fuente, /pendiente|resolver|conflicto/i);
+});
+
+/* ---------- el peso inicial que siembra el import ---------- */
+
+test('cada ejercicio con carga numérica entra en pesosIniciales, con su clave y su nombre de línea', () => {
+  const r = resultado({
+    sesiones: [sesion('2026-04-06', [
+      ejercicio('Press Plano', { cargaSugerida: 'Manc. 10kg (x2)' }),
+      ejercicio('Cargada + Empuje', { orden: 2, cargaSugerida: 'Barra Ol + 12,5 kg' }),
+    ])],
+  });
+
+  const { payload, resumen } = prepararPayloadPlanFisico(r, [], {}, CONTEXTO);
+
+  assert.deepEqual(payload.pesosIniciales, [
+    { clave: clavearNombre('Press Plano'), nombre: 'Press Plano', kg: 10 },
+    { clave: clavearNombre('Cargada + Empuje'), nombre: 'Cargada + Empuje', kg: 12.5 },
+  ]);
+  assert.equal(resumen.pesosIniciales, 2);
+});
+
+test('una carga sin número pegado a kg no siembra nada', () => {
+  const r = resultado({
+    sesiones: [sesion('2026-04-06', [
+      ejercicio('Plancha', { cargaSugerida: 'PC' }),
+      ejercicio('Dominadas', { orden: 2, cargaSugerida: 'Fallo' }),
+      ejercicio('Remo', { orden: 3, cargaSugerida: 'Manc 10' }),
+      ejercicio('Salto', { orden: 4, cargaSugerida: null }),
+    ])],
+  });
+
+  const { payload, resumen } = prepararPayloadPlanFisico(r, [], {}, CONTEXTO);
+
+  assert.deepEqual(payload.pesosIniciales, []);
+  assert.equal(resumen.pesosIniciales, 0);
+});
+
+test('un ejercicio en varias sesiones se siembra una vez, con la carga de la sesión más temprana', () => {
+  const r = resultado({
+    sesiones: [
+      // El archivo puede traerlas en cualquier orden: manda la fecha.
+      sesion('2026-04-20', [ejercicio('Press Plano', { cargaSugerida: '20 kg' })]),
+      sesion('2026-04-06', [ejercicio('Press Plano', { cargaSugerida: '10 kg' })]),
+    ],
+  });
+
+  const { payload } = prepararPayloadPlanFisico(r, [], {}, CONTEXTO);
+
+  assert.deepEqual(payload.pesosIniciales, [{ clave: clavearNombre('Press Plano'), nombre: 'Press Plano', kg: 10 }]);
+});
+
+test('si la sesión más temprana no trae número, decide la primera que sí lo trae', () => {
+  const r = resultado({
+    sesiones: [
+      sesion('2026-04-06', [ejercicio('Press Plano', { cargaSugerida: 'Manc 10' })]),
+      sesion('2026-04-13', [ejercicio('Press Plano', { cargaSugerida: '12 kg' })]),
+      sesion('2026-04-20', [ejercicio('Press Plano', { cargaSugerida: '15 kg' })]),
+    ],
+  });
+
+  const { payload } = prepararPayloadPlanFisico(r, [], {}, CONTEXTO);
+
+  assert.deepEqual(payload.pesosIniciales, [{ clave: clavearNombre('Press Plano'), nombre: 'Press Plano', kg: 12 }]);
+});
+
+test('el peso se sigue por el nombre de la línea, no por el video: dos nombres parecidos son dos ejercicios', () => {
+  const r = resultado({
+    sesiones: [sesion('2026-04-06', [
+      ejercicio('Press Plano', { cargaSugerida: '10 kg' }),
+      ejercicio('Press Plano (Manc)', { orden: 2, cargaSugerida: '12 kg' }),
+    ])],
+  });
+
+  const { payload } = prepararPayloadPlanFisico(r, [], {}, CONTEXTO);
+
+  assert.deepEqual(payload.pesosIniciales.map((p) => p.kg), [10, 12]);
+  assert.equal(payload.pesosIniciales[0].clave === payload.pesosIniciales[1].clave, false);
+});
+
+test('cada línea lleva además cómo se leyó su propia carga', () => {
+  const r = resultado({
+    sesiones: [sesion('2026-04-06', [
+      ejercicio('Press Plano', { cargaSugerida: 'Manc. 10kg (x2)' }),
+      ejercicio('Plancha', { orden: 2, cargaSugerida: 'PC' }),
+    ])],
+  });
+
+  const { payload } = prepararPayloadPlanFisico(r, [], {}, CONTEXTO);
+
+  assert.deepEqual(ejerciciosDel(payload).map((e) => e.pesoSugerido), [10, null]);
+});

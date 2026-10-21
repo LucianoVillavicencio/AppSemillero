@@ -1,0 +1,495 @@
+import {
+  obtenerSesionActual, obtenerClubesDelEntrenador, obtenerPlantelesDelClub, cerrarSesion,
+  obtenerMisRoles, obtenerMisPlantelesAsignados, obtenerMiUsuario, obtenerMiFicha,
+  guardarErrorDeCliente, yaAceptoLegal, vincularPorMail, obtenerMisChicos,
+} from '../data/repositorio.js';
+import { necesitaNombre, nombreSugerido, nombreDeUsuario, quiereSerJugador } from '../data/cuenta.js';
+import { VERSION_LEGAL } from '../data/legal.js';
+import { puedeHaberSesion } from '../data/sesionGuardada.js';
+import { registroDeError } from '../data/errorDeCliente.js';
+import { iniciarReporteDeErrores } from './reporteDeErrores.js';
+import { alReportarError } from './errores.js';
+import { abrirSolicitudJugador } from './pantallas/solicitudJugador.js';
+import { mostrarPantalla, toast } from './nav.js';
+import { confirmarEnHoja } from './componentes/confirmar.js';
+import {
+  cerrarHoja, hojaAbierta, alCambiarHoja, hayCapa, cerrarUltimaCapa, capasAbiertas,
+} from './componentes/hoja.js';
+import { crearHistorial } from './historial.js';
+import {
+  setClubActual, obtenerClubActual, setPlanteles, limpiarSesion, setRoles, obtenerModo, setModo,
+  setCuenta, setFichaJugador, setPlantelActivoId, obtenerRoles, obtenerCuenta, setChicos,
+} from './sesion.js';
+import { GUIAS, guiaParaAbrir } from '../data/guias.js';
+import { claveGuia, yaVista } from './guiaVista.js';
+import { abrirGuia } from './componentes/guia.js';
+import { descartarBorradoresAnteriores } from './borradorMedicion.js';
+import {
+  iniciarChrome, renderChrome, pantallaInicialDelModo, pantallaDeInicio, PANTALLA_PERFIL,
+} from './chrome.js';
+import {
+  iniciarPublico, mostrarPublico, mostrarApp, mostrarLanding, mostrarSinClub, mostrarPedirNombre,
+  mostrarAceptarLegal, tomarJugadorPorGoogle,
+} from './publico.js';
+import { registrarServiceWorker } from './pwa.js';
+
+const pantallas = new Map();
+const pila = [];
+
+// Espejo de `pila` + la hoja abierta en el historial del navegador, para que
+// el Atrás del sistema cierre la hoja o vuelva una pantalla. La fuente de
+// verdad sigue siendo `pila`; ver historial.js.
+const historial = crearHistorial(window.history);
+
+function sincronizarHistorial() {
+  historial.ajustar(pila.length + capasAbiertas());
+}
+
+/**
+ * La persona tocó Atrás en el sistema: lo abierto encima (capa a pantalla
+ * completa, hoja) consume los primeros pasos y recién después se vuelve una
+ * pantalla. Lo abierto se cuenta ANTES de empezar: si volver() abre una
+ * confirmación, un paso más no tiene que cerrársela en la cara.
+ */
+async function atrasDelSistema(pasos) {
+  let encima = capasAbiertas();
+  for (let i = 0; i < pasos; i += 1) {
+    if (encima > 0) {
+      encima -= 1;
+      if (hayCapa()) cerrarUltimaCapa();
+      else cerrarHoja();
+    } else if (pila.length > 0) {
+      await volver();
+      if (hojaAbierta()) break;
+    }
+  }
+  // Si una confirmación frenó la salida, la entrada que se gastó hay que
+  // volver a ponerla: la app sigue donde estaba.
+  sincronizarHistorial();
+}
+
+// Quien se registró por la puerta de jugadores cae en el formulario de pedir
+// acceso, pero una sola vez por sesión: si vuelve atrás a "todavía no tenés
+// club" y reintenta, no se lo vuelve a abrir por la fuerza.
+let yaSeLeAbrioElPedido = false;
+
+/**
+ * Si el usuario llega desde el link de "recuperar contraseña", la URL trae el
+ * token en el hash. Hay que leerlo ACÁ, antes de tocar Supabase: el cliente
+ * detecta ese hash, abre sesión y lo borra, y a partir de ese momento esta
+ * visita es indistinguible de una entrada normal — lo mandaríamos derecho a
+ * la app en vez de pedirle la contraseña nueva.
+ */
+const VIENE_A_CAMBIAR_LA_CLAVE = /[#&]type=recovery/.test(window.location.hash);
+
+/**
+ * Registra una pantalla. `render` puede ser async; se llama cada vez que se
+ * navega a la pantalla, así los datos se releen y no hace falta invalidar
+ * cachés a mano después de un import.
+ *
+ * `confirmarSalida` es opcional: si devuelve `{ titulo, texto, verbo, alSalir }`
+ * se pide confirmación antes de irse de la pantalla (hay algo en curso que no
+ * se puede retomar); si devuelve null, se sale sin preguntar. `alSalir` corta
+ * lo que estaba en curso y corre sólo si la persona confirma.
+ */
+export function registrarPantalla(id, { titulo, render, confirmarSalida } = {}) {
+  pantallas.set(id, { titulo, render, confirmarSalida });
+}
+
+/**
+ * Si la pantalla actual pide confirmar antes de irse, abre la hoja y devuelve
+ * true: quien navega no sigue. Al confirmar se corta lo que corría y se repite
+ * la navegación, que esta vez ya no frena.
+ */
+function frenaLaSalida(reintentar) {
+  const pedido = pantallas.get(pantallaActualId())?.confirmarSalida?.();
+  if (!pedido) return false;
+  const { alSalir, ...hoja } = pedido;
+  confirmarEnHoja({
+    ...hoja,
+    alConfirmar: async () => {
+      alSalir?.();
+      await reintentar();
+    },
+  });
+  return true;
+}
+
+/** Id de la pantalla visible, derivado del DOM (ver nota de diseño en el spec). */
+export function pantallaActualId() {
+  return document.querySelector('.pant.on')?.id ?? null;
+}
+
+export function sincronizarChrome() {
+  const id = pantallaActualId();
+  renderChrome({
+    pantallaId: id,
+    titulo: pantallas.get(id)?.titulo ?? '',
+    mostrarAtras: pila.length > 0,
+  });
+}
+
+export async function ir(id, { push = false } = {}) {
+  const def = pantallas.get(id);
+  if (!def) return;
+  const desde = pantallaActualId();
+  if (desde !== id && frenaLaSalida(() => ir(id, { push }))) return;
+  if (push && desde && desde !== id) pila.push(desde);
+  if (!push) pila.length = 0;
+  sincronizarHistorial();
+  mostrarPantalla(id);
+  sincronizarChrome();
+  if (def.render) await def.render();
+}
+
+/**
+ * Vuelve a renderizar la pantalla actual sin tocar la pila de navegación.
+ * Usada cuando se cambia de categoría desde el chip selector: eso es un
+ * refresco del contenido, no una navegación, y no debe vaciar el back stack
+ * (a diferencia de ir() sin push).
+ */
+export async function refrescar() {
+  const id = pantallaActualId();
+  const def = pantallas.get(id);
+  if (!def) return;
+  sincronizarChrome();
+  if (def.render) await def.render();
+}
+
+/**
+ * Cambia la categoría activa. Si la pantalla tiene algo en curso (Yo-Yo
+ * corriendo) pide confirmación antes: el plantel recién se fija si la persona
+ * confirma, así cancelar deja todo como estaba, chips incluidos.
+ */
+export async function cambiarPlantel(id) {
+  if (frenaLaSalida(() => cambiarPlantel(id))) return;
+  setPlantelActivoId(id);
+  await refrescar();
+}
+
+/**
+ * Cambia entre entrenar y coordinar. Como con la categoría, el modo recién se
+ * fija si la persona confirma: cancelar con el Yo-Yo corriendo no puede dejar
+ * el modo cambiado y las pestañas de coordinación sobre la prueba.
+ */
+async function cambiarModo(modo) {
+  if (frenaLaSalida(() => cambiarModo(modo))) return;
+  setModo(modo);
+  await ir(pantallaInicialDelModo());
+  abrirGuiaSiFalta();
+}
+
+/**
+ * La intro del modo, la primera vez que se entra. Va después de dibujar la
+ * pantalla inicial: abierta antes, la hoja taparía una pantalla en blanco.
+ */
+function abrirGuiaSiFalta() {
+  const modo = obtenerModo();
+  const usuarioId = obtenerCuenta()?.id;
+  const vista = GUIAS[modo] ? yaVista(claveGuia(usuarioId, modo), GUIAS[modo].version) : true;
+  const guiaId = guiaParaAbrir({ modo, hojaAbierta: hojaAbierta(), vista });
+  if (guiaId) abrirGuia({ guiaId, roles: obtenerRoles(), usuarioId });
+}
+
+export async function volver() {
+  if (frenaLaSalida(volver)) return;
+  const destino = pila.pop() ?? pantallaInicialDelModo();
+  sincronizarHistorial();
+  mostrarPantalla(destino);
+  sincronizarChrome();
+  const def = pantallas.get(destino);
+  if (def?.render) await def.render();
+}
+
+/** Deja la app cerrada y vuelve al shell público. */
+function volverALaLanding() {
+  yaSeLeAbrioElPedido = false;
+  limpiarSesion();
+  pila.length = 0;
+  sincronizarHistorial();
+  mostrarLanding();
+}
+
+async function sesionSilenciosa() {
+  try {
+    return await obtenerSesionActual();
+  } catch {
+    return null;
+  }
+}
+
+/** Lo que la UI aporta a la decisión de sesionGuardada.js: URL y storage. */
+function puedeHaberSesionAbierta() {
+  try {
+    return puedeHaberSesion({
+      search: window.location.search,
+      hash: window.location.hash,
+      claves: Object.keys(window.localStorage),
+    });
+  } catch {
+    // localStorage bloqueado (modo privado, cookies de terceros): no se puede
+    // saber, así que se le pregunta a Supabase como antes.
+    return true;
+  }
+}
+
+/**
+ * Salir no pide confirmación: no se pierde nada. Lo del servidor queda
+ * guardado y el borrador de medición vive en localStorage, que signOut no
+ * toca. El criterio del proyecto reserva la hoja de confirmación para lo
+ * irreversible (ver confirmarBorrado en ejercicio.js).
+ */
+export async function salir() {
+  try {
+    await cerrarSesion();
+  } catch {
+    toast('No se pudo avisar al servidor, pero saliste en este dispositivo.');
+  }
+  volverALaLanding();
+}
+
+/**
+ * La ficha de quien tiene cuenta de jugador, o null. Un error no la vuelve un
+ * fallo de arranque: quien no es jugador (o todavía no tiene la migración 0030
+ * en su base) sigue viendo "todavía no tenés club", con su botón de reintentar.
+ */
+async function fichaDelJugador() {
+  try {
+    return await obtenerMiFicha();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Los chicos de una cuenta de familia, o []. Primero crea los vínculos que
+ * falten para su mail (0057); a quien no es familia (un profe dado de baja,
+ * una cuenta sin nada) la base le contesta 42501 o vacío, y sigue viendo
+ * "todavía no tenés club" como siempre. Un error nunca es un fallo de arranque.
+ */
+async function chicosDeLaFamilia() {
+  try {
+    await vincularPorMail();
+    return await obtenerMisChicos();
+  } catch {
+    return [];
+  }
+}
+
+/** Shell de la familia: una pestaña, sin categorías ni cambio de modo. */
+async function entrarComoFamilia(chicos) {
+  setClubActual({ id: null, nombre: chicos[0].clubNombre });
+  setChicos(chicos);
+  setRoles({ esFamilia: true });
+  setPlanteles([]);
+  mostrarApp();
+  await ir(pantallaInicialDelModo());
+  abrirGuiaSiFalta();
+}
+
+/** Shell del jugador: sin categorías ni cambio de modo, sólo sus tres pestañas. */
+async function entrarComoJugador(ficha) {
+  setClubActual({ id: ficha.clubId, nombre: ficha.clubNombre });
+  setFichaJugador(ficha);
+  setRoles({ esJugador: true });
+  setPlanteles([]);
+  mostrarApp();
+  await ir(pantallaInicialDelModo());
+  abrirGuiaSiFalta();
+}
+
+/**
+ * Con sesión válida, decide entre la app y la pantalla de "todavía no tenés
+ * club". Una cuenta sin fila en miembro_club no es un error ni una app rota:
+ * es el estado normal de alguien que recién se registró. RLS ya garantiza que
+ * no ve absolutamente nada — lo único que falta es decírselo con todas las
+ * letras, porque vincular una cuenta a un club es un acto manual y no hay
+ * forma de pedirlo desde acá (ver ESQUEMA.md, miembro_club).
+ */
+async function entrarConSesion() {
+  // El nombre va ANTES que el club: una cuenta nueva sin nombre no pasa, ni
+  // siquiera a la pantalla de "falta el acceso", porque el coordinador
+  // necesita saber a quién está habilitando. En la práctica esto sólo frena
+  // la primera entrada con Google: por mail, el nombre se pide al registrarse.
+  let usuario;
+  try {
+    usuario = await obtenerMiUsuario();
+  } catch {
+    toast('No se pudo cargar tu cuenta. Revisá tu conexión.');
+    volverALaLanding();
+    return;
+  }
+  if (!usuario) {
+    volverALaLanding();
+    return;
+  }
+  if (necesitaNombre(usuario)) {
+    mostrarPedirNombre({ sugerido: nombreSugerido(usuario) });
+    return;
+  }
+  setCuenta({ id: usuario.id, email: usuario.email, nombre: nombreDeUsuario(usuario) });
+
+  // Después del nombre y antes del club: cubre el alta por mail, la primera
+  // entrada con Google y a quien ya tenía cuenta antes de que existieran los
+  // Términos. Cambiar VERSION_LEGAL vuelve a pedirlo a todos.
+  let aceptado;
+  try {
+    aceptado = await yaAceptoLegal(VERSION_LEGAL);
+  } catch {
+    toast('No se pudo cargar tu cuenta. Revisá tu conexión.');
+    volverALaLanding();
+    return;
+  }
+  if (!aceptado) {
+    mostrarAceptarLegal();
+    return;
+  }
+
+  let clubes;
+  try {
+    clubes = await obtenerClubesDelEntrenador();
+  } catch {
+    toast('No se pudo cargar tu club. Revisá tu conexión.');
+    volverALaLanding();
+    return;
+  }
+  let roles = { esEntrenador: false, esCoordinador: false };
+  if (clubes.length) {
+    try {
+      roles = await obtenerMisRoles(clubes[0].id);
+    } catch {
+      toast('No se pudo cargar tu acceso. Revisá tu conexión.');
+      volverALaLanding();
+      return;
+    }
+  }
+  // Se toma acá y no antes: pedir el nombre y los Términos cortan este camino
+  // y lo vuelven a empezar, y la marca tiene que llegar hasta la decisión.
+  const eligioJugador = tomarJugadorPorGoogle();
+  // Un profe dado de baja conserva su fila de miembro_club sin ningún rol
+  // (0039) y por RLS sigue viendo el club: no es del cuerpo técnico, y
+  // tratarlo como tal lo dejaba en modo coordinar con todo vacío.
+  if (!clubes.length || !(roles.esEntrenador || roles.esCoordinador)) {
+    // Sin club de staff puede ser un jugador con cuenta. Se pregunta recién acá
+    // para que el arranque del cuerpo técnico no sume ni una llamada.
+    const ficha = await fichaDelJugador();
+    if (ficha) {
+      await entrarComoJugador(ficha);
+      return;
+    }
+    const chicos = await chicosDeLaFamilia();
+    if (chicos.length) {
+      await entrarComoFamilia(chicos);
+      return;
+    }
+    const sesion = await sesionSilenciosa();
+    mostrarSinClub(sesion?.user?.email);
+    if ((quiereSerJugador(usuario) || eligioJugador) && !yaSeLeAbrioElPedido) {
+      yaSeLeAbrioElPedido = true;
+      await abrirSolicitudJugador();
+    }
+    return;
+  }
+  setClubActual(clubes[0]);
+  setRoles(roles);
+
+  // Los chips del modo entrenar son SÓLO las categorías asignadas vigentes.
+  // Con RLS alcanzaba para un entrenador puro, pero quien además coordina ve
+  // todos los planteles del club (policy plantel_coordinador_ver, 0017): sin
+  // este filtro tendría chips de categorías cuyas pantallas le quedan vacías.
+  let planteles = [];
+  if (obtenerModo() === 'entrenar') {
+    try {
+      const [todos, asignados] = await Promise.all([
+        obtenerPlantelesDelClub(clubes[0].id),
+        obtenerMisPlantelesAsignados(clubes[0].id),
+      ]);
+      planteles = todos.filter((p) => asignados.has(p.id));
+    } catch {
+      toast('No se pudieron cargar las categorías. Revisá tu conexión.');
+    }
+  }
+  setPlanteles(planteles);
+
+  mostrarApp();
+  // Entrenando arranca en PLANTEL, donde empieza el flujo de quien arranca de
+  // cero; coordinando, en el Panorama.
+  await ir(pantallaInicialDelModo());
+  abrirGuiaSiFalta();
+}
+
+async function iniciar() {
+  // Primero de todo: desde acá en adelante, lo que se rompa deja rastro. El
+  // club se lee en el momento de capturar, no acá: al arrancar todavía no se
+  // sabe cuál es, y una sesión que cambia de club tiene que cambiarlo también.
+  iniciarReporteDeErrores({
+    pantallaActual: pantallaActualId,
+    alCapturar: (registro) => guardarErrorDeCliente(registro, obtenerClubActual()?.id ?? null),
+  });
+
+  // A diferencia de iniciarReporteDeErrores (lo que nadie atrapó), esto es lo
+  // que sí se le mostró a la persona en una pantalla (mensajeAlGuardar, en la
+  // rama de permiso y en la genérica): el código no tiene su propia columna
+  // en error_cliente, así que va adentro del mensaje.
+  alReportarError(({ codigo, mensaje }) => {
+    const registro = registroDeError({ message: codigo ? `[${codigo}] ${mensaje}` : mensaje }, {
+      pantalla: pantallaActualId(),
+      agente: navigator.userAgent,
+    });
+    guardarErrorDeCliente(registro, obtenerClubActual()?.id ?? null);
+  });
+
+  historial.iniciar();
+  alCambiarHoja(sincronizarHistorial);
+  window.addEventListener('popstate', (e) => {
+    const pasos = historial.alPop(e.state);
+    if (pasos > 0) atrasDelSistema(pasos);
+  });
+
+  descartarBorradoresAnteriores();
+  iniciarPublico({ onEntrar: entrarConSesion, onReintentarClub: entrarConSesion });
+  iniciarChrome({
+    onTab: (id) => ir(id),
+    onPlantel: (id) => cambiarPlantel(id),
+    onVolver: () => volver(),
+    onInicio: () => ir(pantallaDeInicio()),
+    // push: Mi perfil se abre encima de donde estaba, y volver regresa ahí.
+    onPerfil: () => ir(PANTALLA_PERFIL, { push: true }),
+    // Sólo existe para quien tiene los dos roles (ver chrome.js). Con los dos,
+    // siempre se entra entrenando, así que los chips ya están cargados.
+    onModo: () => cambiarModo(obtenerModo() === 'coordinar' ? 'entrenar' : 'coordinar'),
+  });
+
+  // Splash oscuro mientras se resuelve la sesión. Los dos shells arrancan
+  // ocultos a propósito: quien ya entró no tiene que ver pasar la landing, y
+  // quien no entró no tiene que ver el chrome de la app.
+  //
+  // Salvo que ya se sepa que no hay sesión: entonces la landing se pinta acá,
+  // antes de cargar las pantallas y sin tocar la red. Las pantallas son las
+  // de adentro de la app; los botones de la landing los cableó iniciarPublico
+  // más arriba, así que ya andan.
+  const derechoALaLanding = !puedeHaberSesionAbierta();
+  mostrarPublico(derechoALaLanding ? 'v-landing' : 'v-cargando');
+
+  const { registrarPantallas } = await import('./pantallas/registro.js');
+  registrarPantallas();
+
+  // Se cargaron igual porque hacen falta en cuanto entre; lo que no hace
+  // falta es lo que viene abajo, que es preguntar por una sesión que no hay.
+  if (derechoALaLanding) return;
+
+  if (VIENE_A_CAMBIAR_LA_CLAVE) {
+    // Fuerza la creación del cliente, que es lo que consume el token del hash
+    // y deja la sesión de recuperación abierta para updateUser().
+    await sesionSilenciosa();
+    mostrarPublico('v-nueva-clave');
+    return;
+  }
+
+  const sesion = await sesionSilenciosa();
+  if (sesion) await entrarConSesion();
+  else mostrarLanding();
+}
+
+iniciar();
+registrarServiceWorker();

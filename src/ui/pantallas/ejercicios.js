@@ -1,0 +1,284 @@
+import { obtenerEjercicios, crearEjercicio, actualizarEjercicio } from '../../data/repositorio.js';
+import { TEMAS, nombreDeTema } from '../../data/temas.js';
+import { obtenerClubActual } from '../sesion.js';
+import { escaparHtml, toast } from '../nav.js';
+import { esEnlaceWeb, MENSAJE_ENLACE_NO_WEB } from '../../data/enlaces.js';
+import { cargarPerfiles, nombreDe, asegurarNombre } from '../perfil.js';
+import { abrirHoja, cerrarHoja } from '../componentes/hoja.js';
+import { $ } from '../dom.js';
+import { LIMITE } from '../../data/limites.js';
+import { textoDeError } from '../errores.js';
+
+const contenedor = () => $('recursos-ejercicios');
+
+let temaFiltro = null;              // null = todos
+let abrirEjercicio = () => {};
+
+/**
+ * La Task 8 registra acá la apertura del detalle. Es inyección y no import
+ * para no armar un ciclo: `ejercicio.js` sí importa de este archivo.
+ */
+export function setAbrirEjercicio(fn) { abrirEjercicio = fn; }
+
+function estadoVacioHtml() {
+  return `
+    <div class="estado-vacio">
+      <h2>La biblioteca está vacía</h2>
+      <div class="p">Acá van los ejercicios del club, con lo que cada profe aprendió al usarlos. Lo que hoy se pierde no es el ejercicio —eso está en internet— sino qué pasó cuando lo probaste con estos chicos.</div>
+      <div class="p">Cargar uno son dos campos: título y tema.</div>
+      <div class="acciones"><button class="btn" id="btn-primer-ejercicio">Cargar el primero</button></div>
+    </div>
+  `;
+}
+
+function tarjetaEjercicio(e) {
+  return `
+    <button class="ejercicio" data-ejercicio="${e.id}">
+      <div class="cab">
+        <span class="tema">${escaparHtml(nombreDeTema(e.tema))}</span>
+        ${e.tieneNotas ? '<span class="probado" title="Tiene notas de uso">✓ probado</span>' : ''}
+      </div>
+      <div class="tit">${escaparHtml(e.titulo)}</div>
+      <div class="autor">${escaparHtml(nombreDe(e.creadoPor))}${textoVariaciones(e.cantidadVariaciones)}</div>
+    </button>
+  `;
+}
+
+/** Cuánto se puede progresar el ejercicio. Sin variaciones no dice nada: no es un "0". */
+function textoVariaciones(n) {
+  if (!n) return '';
+  return ` · <span class="n-var">${n === 1 ? '1 variación' : `${n} variaciones`}</span>`;
+}
+
+/** Sólo los temas que efectivamente tienen ejercicios: nunca se muestra un chip vacío. */
+function temasConEjercicios(ejercicios) {
+  const presentes = new Set(ejercicios.map((e) => e.tema));
+  return TEMAS.filter((t) => presentes.has(t.id));
+}
+
+function pintarListaEjercicios(ejercicios) {
+  const temas = temasConEjercicios(ejercicios);
+  const filtrados = temaFiltro == null ? ejercicios : ejercicios.filter((e) => e.tema === temaFiltro);
+
+  contenedor().innerHTML = `
+    <div class="pad">
+      <div class="chips-tema">
+        <button type="button" class="chip-tema ${temaFiltro === null ? 'on' : ''}" data-tema-filtro="">Todos</button>
+        ${temas.map((t) => `<button type="button" class="chip-tema ${temaFiltro === t.id ? 'on' : ''}" data-tema-filtro="${t.id}">${escaparHtml(t.nombre)}</button>`).join('')}
+      </div>
+      <div id="ejercicios-lista">${filtrados.map(tarjetaEjercicio).join('')}</div>
+    </div>
+    <div class="pie-fijo"><button class="btn sec" id="btn-agregar-ejercicio">Cargar un ejercicio</button></div>
+  `;
+
+  contenedor().querySelectorAll('[data-tema-filtro]').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      temaFiltro = chip.dataset.temaFiltro || null;
+      pintarListaEjercicios(ejercicios);
+    });
+  });
+  $('btn-agregar-ejercicio').addEventListener('click', () => abrirAltaEjercicio(null));
+  contenedor().querySelectorAll('[data-ejercicio]').forEach((boton) => {
+    boton.addEventListener('click', () => abrirEjercicio(boton.dataset.ejercicio));
+  });
+}
+
+export async function renderSeccionEjercicios() {
+  const club = obtenerClubActual();
+  if (!club) {
+    contenedor().innerHTML = `<div class="pad"><div class="p">No hay un club seleccionado.</div></div>`;
+    return;
+  }
+
+  contenedor().innerHTML = `<div class="pad"><div class="p" id="ejercicios-estado" role="status">Cargando ejercicios…</div></div>`;
+
+  let ejercicios;
+  try {
+    // cargarPerfiles junto con la lectura: sin nombres, el autor de cada
+    // ejercicio sería un UUID. Mismo patrón que la pestaña Jugadores.
+    [, ejercicios] = await Promise.all([
+      cargarPerfiles(club.id),
+      obtenerEjercicios(club.id),
+    ]);
+  } catch (e) {
+    // Que falle la lectura no puede dejar la pantalla sin su acción principal:
+    // mismo criterio que ya sigue la pestaña Jugadores (recursos.js).
+    $('ejercicios-estado').outerHTML = `
+      <div class="al"><div class="tx">${
+        textoDeError(e, 'No se pudieron cargar los ejercicios.')
+      }</div></div>
+      <button class="btn sec" id="btn-reintentar-ejercicios">Reintentar</button>
+    `;
+    $('btn-reintentar-ejercicios').addEventListener('click', () => renderSeccionEjercicios());
+    return;
+  }
+
+  if (!ejercicios.length) {
+    contenedor().innerHTML = `<div class="pad">${estadoVacioHtml()}</div>`;
+    $('btn-primer-ejercicio').addEventListener('click', () => abrirAltaEjercicio(null));
+    return;
+  }
+
+  temaFiltro = null;
+  pintarListaEjercicios(ejercicios);
+}
+
+/**
+ * Título y tema son los únicos dos campos obligatorios: el que carga un
+ * ejercicio no es quien recibe el beneficio (eso lo sienten el club y quien
+ * venga después), así que todo lo que no hace falta para guardar vive
+ * plegado y cerrado. Los chips reemplazan al elemento select nativo porque
+ * en celular ese control abre el picker del sistema: tres toques contra uno.
+ */
+function cuerpoDeAlta(previo) {
+  // Completar después es editar (spec): si el ejercicio ya trae algún campo
+  // opcional cargado, esconderlo detrás de "Agregar más detalles" simula que
+  // no hay nada ahí. Arranca plegado sólo cuando de verdad no hay nada que
+  // mostrar.
+  const tieneDetalles = Boolean(previo && (previo.descripcion || previo.enlace || previo.material || previo.jugadores || previo.categorias));
+  return `
+    <div class="campo">
+      <label for="in-ej-titulo">Título</label>
+      <input id="in-ej-titulo" type="text" maxlength="${LIMITE.titulo}" autocomplete="off" value="${escaparHtml(previo?.titulo ?? '')}">
+    </div>
+    <div class="campo">
+      <label id="lbl-tema">Tema</label>
+      <div class="chips-tema" id="ej-chips-tema" role="group" aria-labelledby="lbl-tema">
+        ${TEMAS.map((t) => `<button type="button" class="chip-tema ${previo?.tema === t.id ? 'on' : ''}" data-tema="${t.id}">${escaparHtml(t.nombre)}</button>`).join('')}
+      </div>
+    </div>
+    <button class="btn sec" id="btn-mas-detalles" type="button" ${tieneDetalles ? 'hidden' : ''}>${previo ? 'Agregar detalles' : 'Agregar más detalles'}</button>
+    <div id="ej-detalles" ${tieneDetalles ? '' : 'hidden'}>
+      <div class="campo"><label for="in-ej-desc">Descripción</label><textarea id="in-ej-desc" rows="4" maxlength="${LIMITE.descripcion}">${escaparHtml(previo?.descripcion ?? '')}</textarea></div>
+      <div class="campo"><label for="in-ej-enlace">Enlace</label><input id="in-ej-enlace" type="url" maxlength="${LIMITE.enlace}" inputmode="url" placeholder="https://" value="${escaparHtml(previo?.enlace ?? '')}"></div>
+      <div class="campo"><label for="in-ej-material">Material</label><input id="in-ej-material" type="text" maxlength="${LIMITE.material}" placeholder="conos, dos pelotas" value="${escaparHtml(previo?.material ?? '')}"></div>
+      <div class="campo"><label for="in-ej-jugadores">Jugadores</label><input id="in-ej-jugadores" type="text" maxlength="${LIMITE.listaCorta}" placeholder="6 a 12" value="${escaparHtml(previo?.jugadores ?? '')}"></div>
+      <div class="campo"><label for="in-ej-categorias">Categorías</label><input id="in-ej-categorias" type="text" maxlength="${LIMITE.listaCorta}" placeholder="mini, sub-13" value="${escaparHtml(previo?.categorias ?? '')}"></div>
+    </div>
+    <div id="ej-aviso"></div>
+    <button class="btn" id="btn-guardar-ejercicio">${previo ? 'Guardar los cambios' : 'Guardar'}</button>
+  `;
+}
+
+/**
+ * Sirve para crear y para editar (Task 9): si `ejercicioExistente` viene con
+ * datos, precarga los campos y guarda con actualizarEjercicio; si no, crea
+ * con crearEjercicio. Una sola función para no duplicar el formulario.
+ *
+ * `alCerrar` es opcional y se reenvía tal cual a abrirHoja: lo usa
+ * ejercicio.js para repintar su detalle cuando esta hoja se cierra (guardado
+ * o cancelado), sin que este módulo necesite saber nada de esa pantalla.
+ */
+export async function abrirAltaEjercicio(ejercicioExistente, alCerrar) {
+  const club = obtenerClubActual();
+  if (!club) return;
+
+  // asegurarNombre ANTES de abrir la hoja del alta: #hoja es la única de toda
+  // la app (hoja.js), así que si se abriera primero y el profe recién ahí
+  // tuviera que poner su nombre, la hoja del nombre pisaría este mismo
+  // formulario con innerHTML y lo que haya tipeado se perdería sin aviso.
+  // Acá todavía no se abrió nada, así que no hay nada que perder.
+  const hayNombre = await asegurarNombre(club.id);
+  if (!hayNombre) return;
+
+  abrirHoja({
+    titulo: ejercicioExistente ? 'Editar ejercicio' : 'Cargar un ejercicio',
+    cuerpo: cuerpoDeAlta(ejercicioExistente),
+    alCerrar,
+  });
+  $('in-ej-titulo').focus();
+
+  $('btn-mas-detalles').addEventListener('click', () => {
+    $('ej-detalles').hidden = false;
+    $('btn-mas-detalles').hidden = true;
+  });
+
+  // Los chips se comportan como radio: al tocar uno se apaga el resto.
+  $('ej-chips-tema').querySelectorAll('.chip-tema').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      $('ej-chips-tema').querySelectorAll('.chip-tema').forEach((c) => c.classList.remove('on'));
+      chip.classList.add('on');
+    });
+  });
+
+  $('btn-guardar-ejercicio').addEventListener('click', () => confirmarAltaEjercicio(ejercicioExistente));
+  // Enter en el título es la otra entrada al mismo submit que el click del
+  // botón; confirmarAltaEjercicio() cubre a las dos con su guarda.
+  $('in-ej-titulo').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') confirmarAltaEjercicio(ejercicioExistente);
+  });
+}
+
+async function confirmarAltaEjercicio(previo) {
+  const boton = $('btn-guardar-ejercicio');
+  // Misma guarda que altaJugador.js: click y Enter son dos entradas al mismo
+  // flujo, y ésta es la única que cubre a las dos contra un doble submit.
+  if (boton.disabled) return;
+
+  const club = obtenerClubActual();
+  const aviso = $('ej-aviso');
+  // El título se guarda tal cual se tipeó; el trim() de acá es sólo para
+  // validar que no esté vacío, nunca para lo que se manda a guardar.
+  const tituloCrudo = $('in-ej-titulo').value;
+  const tema = $('ej-chips-tema').querySelector('.chip-tema.on')?.dataset.tema ?? null;
+
+  if (!tituloCrudo.trim() || !tema) {
+    aviso.innerHTML = `<div class="al"><div class="tx">Elegí un título y un tema.</div></div>`;
+    return;
+  }
+
+  // Mismo guard que recursos.js (confirmarEnvio): escaparHtml evita romper
+  // el atributo href, pero no frena un "javascript:..." o cualquier otro
+  // esquema, y sin "https://" el navegador lo resuelve como ruta relativa de
+  // la app: el link queda roto para todo el club. El trim() es sólo para
+  // chequear, igual que con el título; lo que se guarda va recortado (abajo).
+  const enlaceCrudo = $('in-ej-enlace').value;
+  if (enlaceCrudo.trim() && !esEnlaceWeb(enlaceCrudo.trim())) {
+    aviso.innerHTML = `<div class="al"><div class="tx">${MENSAJE_ENLACE_NO_WEB}</div></div>`;
+    return;
+  }
+
+  boton.disabled = true;
+  boton.textContent = 'Guardando...';
+  aviso.innerHTML = '';
+
+  // El texto va tal cual: nada de trim() ni de normalizar saltos de línea
+  // sobre la descripción ni sobre el resto de los campos de texto libre.
+  const campos = {
+    titulo: tituloCrudo,
+    tema,
+    descripcion: $('in-ej-desc').value,
+    // El enlace sí va recortado: un espacio adelante lo rechaza la base (0027)
+    // y un link con espacios no abre nada.
+    enlace: $('in-ej-enlace').value.trim(),
+    material: $('in-ej-material').value,
+    jugadores: $('in-ej-jugadores').value,
+    categorias: $('in-ej-categorias').value,
+  };
+
+  try {
+    if (previo) {
+      await actualizarEjercicio(club.id, previo.id, campos);
+    } else {
+      await crearEjercicio({ clubId: club.id, ...campos });
+    }
+  } catch (e) {
+    // La garantía es la policy RLS de 0015, no lo que decidió esta pantalla
+    // al mostrar el botón Editar: si el ejercicio pasó a ser de otro club (o
+    // se editó desde otra sesión) mientras el formulario estaba abierto,
+    // actualizarEjercicio puede llegar filtrado por RLS igual. Mismo criterio
+    // que ejercicio.js usa para el borrado.
+    aviso.innerHTML = `<div class="al"><div class="tx">${
+      e?.message === 'NO_ES_TUYO'
+        ? 'Este ejercicio ya no es tuyo: no se puede editar.'
+        : (textoDeError(e, 'No se pudo guardar el ejercicio.'))
+    }</div></div>`;
+    boton.disabled = false;
+    boton.textContent = previo ? 'Guardar los cambios' : 'Guardar';
+    return;
+  }
+
+  cerrarHoja();
+  toast(previo ? 'Ejercicio actualizado' : 'Ejercicio agregado');
+  await renderSeccionEjercicios();
+}

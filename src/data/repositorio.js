@@ -1,0 +1,24 @@
+/*
+ * Fachada del acceso a Supabase. Las pantallas importan de acá; el código vive en
+ * src/data/repos/, un archivo por área. Una función nueva va en el archivo de su
+ * área (o en uno nuevo) y se re-exporta acá con una línea.
+ */
+export * from './repos/auth.js';
+export * from './repos/clubes.js';
+export * from './repos/coordinacion.js';
+export * from './repos/jugadores.js';
+export * from './repos/partidos.js';
+export * from './repos/mediciones.js';
+export * from './repos/recursos.js';
+export * from './repos/ejercicios.js';
+export * from './repos/fisico.js';
+export * from './repos/inventario.js';
+export * from './repos/jugadas.js';
+export * from './repos/miCuenta.js';
+export * from './repos/errores.js';
+export * from './repos/finanzas.js';
+export * from './repos/misiones.js';
+export * from './repos/familia.js';
+export * from './repos/temporadas.js';
+export * from './repos/emergencias.js';
+export * from './repos/portal.js';

@@ -1,0 +1,99 @@
+import { registrarPantalla } from '../main.js';
+import { renderDatos, iniciarDatos } from './datos.js';
+import { renderPlantel, setAbrirFicha, setAbrirAltaManual } from './plantel.js';
+import { renderFicha, abrirFicha } from './fichaJugador.js';
+import { iniciarHoja } from '../componentes/hoja.js';
+import { iniciarVerDetalles } from '../componentes/verDetalles.js';
+import { abrirAltaManual } from './altaJugador.js';
+import { renderHoy } from './hoy.js';
+import { renderMedir } from './medir.js';
+import { renderBateria } from './medirBateria.js';
+import { renderSalto } from './medirSalto.js';
+import { renderSprint } from './medirSprint.js';
+import { renderYoyo, confirmarSalidaYoyo } from './medirYoyo.js';
+import { renderRecursos } from './recursos.js';
+import { setAbrirEjercicio } from './ejercicios.js';
+import { renderEjercicio, abrirEjercicio } from './ejercicio.js';
+import { setAbrirJugada } from './jugadas.js';
+import { renderJugada, abrirJugada } from './jugada.js';
+import { renderJugadaEditor, iniciarJugadaEditor, confirmarSalidaEditor } from './jugadaEditor.js';
+import { renderMetas } from './metas.js';
+import { renderPrevia } from './previa.js';
+import { renderMisionesPartido } from './misionesPartido.js';
+import { renderPanorama } from './coordPanorama.js';
+import { renderProfes } from './coordProfes.js';
+import { renderInventarioCoordinacion, renderInventarioLectura } from './inventario.js';
+import { renderRubros } from './coordRubros.js';
+import { renderFormularios } from './coordFormularios.js';
+import { renderFinanzas } from './coordFinanzas.js';
+import { renderMiPerfil } from './miPerfil.js';
+import { refrescarPlanFisico } from './planFisico.js';
+import { renderFisico, iniciarFisico } from './fisico.js';
+import { renderSesion } from './fisicoSesion.js';
+import { renderEscalones } from './fisicoEscalones.js';
+import { renderJugRecursos } from './jugRecursos.js';
+import { renderJugFisico } from './jugFisico.js';
+import { renderJugSesion } from './jugSesion.js';
+import { renderJugProgreso } from './jugProgreso.js';
+import { renderJugJugadas, iniciarJugJugadas } from './jugJugadas.js';
+import { renderFamChicos } from './famChicos.js';
+import { renderFamilias } from './coordFamilias.js';
+import { renderTemporada } from './coordTemporada.js';
+
+/**
+ * Punto único donde se registran las pantallas. Existe para que main.js no
+ * tenga que importar cada pantalla (y con eso, evitar ciclos de import entre
+ * el router y las pantallas que lo usan para navegar).
+ */
+export function registrarPantallas() {
+  registrarPantalla('p-plantel', { titulo: 'Plantel', render: renderPlantel });
+  registrarPantalla('p-ficha', { titulo: 'Jugador', render: renderFicha });
+  registrarPantalla('p-datos', { titulo: 'Datos', render: renderDatos });
+  registrarPantalla('p-confirmacion', { titulo: 'Cargar partido' });
+  registrarPantalla('p-resultado', { titulo: 'Cargar partido' });
+  registrarPantalla('p-plan-fisico', { titulo: 'Plan físico', render: refrescarPlanFisico });
+  registrarPantalla('p-hoy', { titulo: 'Hoy', render: renderHoy });
+  registrarPantalla('p-medir', { titulo: 'Medir', render: renderMedir });
+  registrarPantalla('p-medir-bateria', { titulo: 'Batería de tiro', render: renderBateria });
+  registrarPantalla('p-medir-salto', { titulo: 'Salto', render: renderSalto });
+  registrarPantalla('p-medir-sprint', { titulo: 'Sprint', render: renderSprint });
+  registrarPantalla('p-medir-yoyo', { titulo: 'Yo-Yo', render: renderYoyo, confirmarSalida: confirmarSalidaYoyo });
+  registrarPantalla('p-fisico', { titulo: 'Físico', render: renderFisico });
+  registrarPantalla('p-fisico-sesion', { titulo: 'Sesión', render: renderSesion });
+  registrarPantalla('p-fisico-escalones', { titulo: 'Escalones', render: renderEscalones });
+  registrarPantalla('p-inventario', { titulo: 'Inventario', render: renderInventarioLectura });
+  registrarPantalla('p-recursos', { titulo: 'Recursos', render: renderRecursos });
+  registrarPantalla('p-ejercicio', { titulo: 'Ejercicio', render: renderEjercicio });
+  registrarPantalla('p-jugada', { titulo: 'Jugada', render: renderJugada });
+  registrarPantalla('p-jugada-editor', { titulo: 'Editor de jugada', render: renderJugadaEditor, confirmarSalida: confirmarSalidaEditor });
+  registrarPantalla('p-metas', { titulo: 'Metas', render: renderMetas });
+  registrarPantalla('p-previa', { titulo: 'Misiones', render: renderPrevia });
+  registrarPantalla('p-misiones-partido', { titulo: 'Evaluar misiones', render: renderMisionesPartido });
+  registrarPantalla('p-coord-panorama', { titulo: 'Panorama', render: renderPanorama });
+  registrarPantalla('p-coord-profes', { titulo: 'Profes', render: renderProfes });
+  registrarPantalla('p-coord-inventario', { titulo: 'Inventario', render: renderInventarioCoordinacion });
+  registrarPantalla('p-coord-familias', { titulo: 'Familias', render: renderFamilias });
+  registrarPantalla('p-coord-temporada', { titulo: 'Cambio de temporada', render: renderTemporada });
+  registrarPantalla('p-coord-finanzas', { titulo: 'Finanzas', render: renderFinanzas });
+  registrarPantalla('p-coord-rubros', { titulo: 'Rubros', render: renderRubros });
+  registrarPantalla('p-coord-formularios', { titulo: 'Formularios', render: renderFormularios });
+  registrarPantalla('p-mi-perfil', { titulo: 'Mi perfil', render: renderMiPerfil });
+  // Modo jugador (0030): sólo lectura, sólo lo suyo.
+  registrarPantalla('p-jug-recursos', { titulo: 'Recursos', render: renderJugRecursos });
+  registrarPantalla('p-jug-fisico', { titulo: 'Físico', render: renderJugFisico });
+  registrarPantalla('p-jug-sesion', { titulo: 'Sesión', render: renderJugSesion });
+  registrarPantalla('p-jug-progreso', { titulo: 'Mi progreso', render: renderJugProgreso });
+  registrarPantalla('p-jug-jugadas', { titulo: 'Jugadas', render: renderJugJugadas });
+  // Modo familia (0057): sus chicos y nada más.
+  registrarPantalla('p-fam-chicos', { titulo: 'Mis chicos', render: renderFamChicos });
+  setAbrirFicha(abrirFicha);
+  setAbrirEjercicio(abrirEjercicio);
+  setAbrirJugada(abrirJugada);
+  iniciarJugadaEditor();
+  iniciarJugJugadas();
+  iniciarDatos();
+  iniciarFisico();
+  iniciarHoja();
+  iniciarVerDetalles();
+  setAbrirAltaManual(abrirAltaManual);
+}

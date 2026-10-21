@@ -1,0 +1,53 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { LIMITE, LIMITES_POR_COLUMNA } from '../src/data/limites.js';
+
+/**
+ * Los límites de largo viven en dos lugares: los check de 0028 (los hace
+ * cumplir la base) y src/data/limites.js (lo que usa la interfaz para
+ * `maxlength`). Este test lee el SQL y compara: si un número cambia de un lado
+ * sólo, o falta una columna en uno de los dos, falla.
+ *
+ * Las tablas creadas después de 0028 llevan el check en línea, en su propio
+ * `create table`: sus migraciones van en TABLAS_NUEVAS.
+ */
+
+const leer = (archivo) => readFileSync(`supabase/migrations/${archivo}`, 'utf8').replace(/\r\n/g, '\n');
+const sql = leer('0028_limites_de_largo.sql');
+
+const enBase = {};
+for (const m of sql.matchAll(/alter table (\w+)\s+add constraint\s+\w+\s+check \(char_length\((\w+)\) <= (\d+)\) not valid;/g)) {
+  enBase[`${m[1]}.${m[2]}`] = Number(m[3]);
+}
+
+const TABLAS_NUEVAS = ['0035_jugadas.sql', '0052_variacion_ejercicio.sql', '0054_finanzas.sql', '0055_misiones_partido.sql', '0057_cuentas_familia.sql', '0058_formulario_portal.sql', '0059_temporada_y_emergencia.sql'];
+for (const archivo of TABLAS_NUEVAS) {
+  for (const tabla of leer(archivo).matchAll(/create table (\w+) \(\n([\s\S]*?)\n\);/g)) {
+    for (const m of tabla[2].matchAll(/^\s+(\w+) text\b[^\n]*check \(char_length\(\1\) <= (\d+)\)/gm)) {
+      enBase[`${tabla[1]}.${m[1]}`] = Number(m[2]);
+    }
+  }
+}
+
+test('la base y la interfaz limitan exactamente las mismas columnas', () => {
+  assert.deepEqual(Object.keys(enBase).sort(), Object.keys(LIMITES_POR_COLUMNA).sort());
+});
+
+test('cada columna tiene el mismo número en la base y en la interfaz', () => {
+  assert.deepEqual(enBase, LIMITES_POR_COLUMNA);
+});
+
+test('todos los límites son enteros positivos y ninguno es absurdo', () => {
+  for (const [nombre, n] of Object.entries(LIMITE)) {
+    assert.ok(Number.isInteger(n) && n > 0 && n <= 10000, `${nombre}: ${n}`);
+  }
+});
+
+test('los RPC de escritura quedan sin acceso anónimo', () => {
+  for (const f of ['importar_partido', 'alta_jugador_manual', 'guardar_sesion_medicion',
+    'guardar_recurso', 'guardar_metas_plantel', 'importar_plan_fisico']) {
+    assert.match(sql, new RegExp(`revoke execute on function ${f}\\(jsonb\\)\\s+from public, anon;`), f);
+    assert.match(sql, new RegExp(`grant execute on function ${f}\\(jsonb\\)\\s+to authenticated;`), f);
+  }
+});

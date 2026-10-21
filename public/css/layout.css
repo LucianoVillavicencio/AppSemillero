@@ -1,0 +1,489 @@
+/* =====================================================================
+   LAYOUT — estructura, navegación y EL ÚNICO lugar del proyecto con
+   media queries de ancho (Etapa 3, Decisión 3).
+   Mobile-first literal: lo de abajo es el celular; los tamaños grandes
+   se agregan con min-width, nunca al revés.
+   ===================================================================== */
+
+/* display:grid le gana al [hidden] del user-agent, y main.js esconde el shell
+   de la app con ese atributo mientras manda el shell público. */
+.app[hidden]{display:none}
+
+.app{
+  height:100dvh;
+  min-height:100dvh;
+  display:grid;
+  grid-template-rows:auto auto minmax(0,1fr) auto;
+  grid-template-areas:"cabecera" "cats" "cuerpo" "nav";
+}
+
+/* ---- cabecera ---- */
+.cabecera{
+  grid-area:cabecera;
+  background:var(--negro);color:var(--sobre-oscuro);
+  padding:calc(var(--sp-3) + env(safe-area-inset-top)) var(--sp-4) var(--sp-2);
+  display:flex;align-items:center;gap:var(--sp-3);
+}
+
+/* El escudo real del club: el mismo archivo que usa el favicon. Antes era
+   un pentágono rojo dibujado con clip-path y las letras NOB encima, o sea
+   una marca genérica y no el escudo de Newell's. */
+.cabecera .escudo{width:2rem;height:2rem;flex:0 0 auto;object-fit:contain}
+
+/* Salir vive en el chrome, como el botón de volver: se llega desde
+   cualquier pantalla y ninguna lo repite. Gris sobre el negro de la
+   cabecera — es una salida, no la acción principal de nada. */
+.cabecera .salir{
+  margin-left:auto;flex:0 0 auto;
+  font-family:var(--ff-titulo);font-size:var(--fs-125);font-weight:600;
+  letter-spacing:.11em;text-transform:uppercase;color:var(--gris-osc);
+  min-height:var(--tap);display:flex;align-items:center;
+  padding-inline:var(--sp-2);margin-right:calc(var(--sp-2) * -1);
+}
+/* Con los dos roles hay un segundo botón de texto. Los dos llevan
+   margin-left:auto: sin esto el espacio libre se reparte entre ellos y
+   quedan separados por medio encabezado. */
+.cabecera .modo{margin-right:0}
+.cabecera .modo + .perfil{margin-left:0}
+
+/* El escudo lleva al inicio desde cualquier pantalla. Botón del tamaño de un
+   dedo, con el escudo del mismo tamaño de siempre adentro. */
+.cabecera .inicio{
+  flex:0 0 auto;min-width:var(--tap);min-height:var(--tap);
+  display:flex;align-items:center;justify-content:center;
+  margin-left:calc(var(--sp-2) * -1);
+}
+
+/* Mi perfil: las iniciales en un círculo, a la derecha de todo. */
+.cabecera .perfil{
+  margin-left:auto;flex:0 0 auto;
+  width:var(--tap);height:var(--tap);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--sup-2);color:var(--sobre-oscuro);border:2px solid var(--primario);
+  font-family:var(--ff-titulo);font-size:var(--fs-145);font-weight:600;letter-spacing:.04em;
+}
+.cabecera .perfil svg{width:1.25rem;height:1.25rem;fill:none;stroke:currentColor;stroke-width:2}
+.cabecera .perfil.on{background:var(--primario);color:var(--sobre-club)}
+
+/* La pantalla actual es un bloque aparte del escudo, separado por una línea:
+   la flecha de volver pertenece al título, no a la marca. */
+.cabecera .pantalla-actual{
+  flex:0 1 auto;min-width:0;
+  display:flex;align-items:center;gap:var(--sp-1);
+  border-left:1px solid var(--linea-osc);padding-left:var(--sp-1);
+}
+/* El lugar de volver existe siempre, con o sin flecha: el título arranca en
+   la misma X en todas las pantallas y la flecha no desplaza nada al aparecer. */
+.cabecera .lugar-volver{flex:0 0 var(--tap);width:var(--tap);height:var(--tap);display:flex}
+
+/* Con escudo, volver, modo y perfil, el título es lo que cede espacio. */
+.cabecera .titulo{min-width:0}
+.cabecera h1{font-size:var(--fs-220);line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cabecera .sub{
+  font-size:var(--fs-100);color:var(--gris-osc);letter-spacing:.07em;
+  text-transform:uppercase;margin-top:.1875rem;font-weight:500;
+}
+.cabecera .atras{
+  font-family:var(--ff-titulo);font-size:var(--fs-260);font-weight:600;color:var(--sobre-oscuro);
+  width:100%;height:100%;display:flex;align-items:center;justify-content:center;
+}
+
+/* La marca de la navegación lateral sólo existe en escritorio (ver ≥1024px). */
+.nav .marca-nav{display:none}
+
+/* ---- barra de categorías ---- */
+.cats{
+  grid-area:cats;
+  background:var(--negro);padding:0 var(--sp-3) var(--sp-3);
+  display:flex;gap:var(--sp-2);overflow-x:auto;
+  border-bottom:3px solid var(--primario);
+  scrollbar-width:none;
+}
+.cats::-webkit-scrollbar{display:none}
+.cats:empty{display:none}
+.cat{
+  flex:0 0 auto;background:var(--sup-1);border-radius:var(--r-m);
+  padding:var(--sp-2) var(--sp-3);min-height:var(--tap);
+  display:flex;align-items:center;
+}
+.cat.on{background:var(--primario)}
+.cat.on .sig{color:var(--sobre-club)}
+.cat .sig{font-family:var(--ff-titulo);font-weight:700;font-size:var(--fs-145);color:var(--sobre-oscuro);line-height:1}
+.cat .mini{
+  font-family:var(--ff-titulo);font-size:var(--fs-100);color:var(--gris-osc);
+  letter-spacing:.05em;text-transform:uppercase;margin-top:.125rem;font-weight:600;
+}
+.cat.on .mini{color:var(--primario-cl)}
+
+/* ---- cuerpo y pantallas ---- */
+.cuerpo{
+  grid-area:cuerpo;min-height:0;overflow-y:auto;
+  overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
+}
+.pant{display:none}
+/* La pantalla entra con un fade, una vez por navegación
+   (mostrarPantalla alterna la clase: refrescar no la toca, así que un cambio de
+   categoría no la repite). El @keyframes sólo define "from": con
+   prefers-reduced-motion la animación se apaga y la pantalla queda en su estado
+   final, nunca invisible.
+
+   Sólo opacidad, sin subida: con transform el navegador arma una capa del tamaño
+   de la pantalla (medido: hasta 3 frames largos más en el primer recorrido con
+   CPU 4x, contra 2 con opacidad sola) y un ancestro transformado se vuelve el
+   contenedor de los hijos position:fixed, como el teclado de MEDIR. */
+.pant.on{display:block;padding-bottom:var(--sp-5);animation:entrar-pantalla var(--dur-2) var(--ease-salida)}
+@keyframes entrar-pantalla{from{opacity:0}}
+.pad{padding:var(--sp-4)}
+
+/* Franja inferior pegajosa para la acción principal de una pantalla.
+   Una sola por pantalla: ver la invariante de navegación del spec. */
+.pie-fijo{
+  position:sticky;bottom:0;z-index:2;
+  background:linear-gradient(transparent,var(--papel) 22%);
+  padding:var(--sp-4) var(--sp-4) var(--sp-3);
+  display:flex;flex-direction:column;gap:var(--sp-2);
+}
+
+/* Pantalla de ingreso. No es un formulario aparte: reusa .campo, .btn y el
+   mismo .pie-fijo que lleva la acción principal de cualquier otra pantalla.
+   Lo único propio es la columna angosta — a ancho completo un login de dos
+   campos se lee mal en escritorio. El max-width no ata nada a 375px, así que
+   no necesita media query. */
+.login{max-width:26rem;margin-inline:auto}
+.login .h2{margin-top:0}
+.login .p{margin-bottom:var(--sp-5)}
+.login .al{margin-bottom:0}
+/* En escritorio el pie alinea su botón a la derecha y le da ancho propio, que
+   sirve para una acción al pie de una pantalla larga. Acá no: el botón cierra
+   un formulario de dos campos y tiene que medir lo mismo que ellos. */
+.login .pie-fijo{justify-content:stretch}
+.login .pie-fijo .btn{width:100%}
+
+/* ---- navegación ---- */
+.nav{
+  grid-area:nav;
+  display:flex;background:var(--negro);border-top:3px solid var(--primario);
+  padding-bottom:env(safe-area-inset-bottom);user-select:none;
+}
+.nav:empty{display:none}
+.nav button{
+  flex:1;min-height:var(--tap);
+  padding:var(--sp-2) 0 var(--sp-3);
+  display:flex;flex-direction:column;align-items:center;gap:.1875rem;
+  color:var(--blanco);
+}
+/* Todos los tabs en blanco (18.5:1 sobre --negro). Con el gris de antes
+   (#817D77, 4.5:1) un entrenador no encontró la barra dos veces en un test
+   de usabilidad. Como el texto ya no marca cuál está
+   activo, el activo lleva dos señales: ícono rojo y etiqueta en bold.
+   Con el piso de 12px (--fs-115) JUGADORES y EJERCICIOS no entran en los 53px
+   de un tab a 320px con el espaciado normal: ahí se aprieta el letter-spacing. */
+.nav button.on svg{stroke:var(--primario)}
+.nav button.on span{font-weight:700}
+.nav svg{width:1.125rem;height:1.125rem;stroke:var(--blanco);fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.nav span{
+  font-family:var(--ff-titulo);font-size:var(--fs-115);letter-spacing:.06em;
+  text-transform:uppercase;font-weight:500;
+}
+@media (max-width:340px){.nav span{letter-spacing:.02em}}
+
+/* ---- velo, hoja y toast ---- */
+.velo{
+  position:fixed;inset:0;background:var(--velo);
+  opacity:0;pointer-events:none;transition:opacity var(--dur-2) var(--ease-entrada);z-index:40;
+}
+.velo.on{opacity:1;pointer-events:auto;transition-timing-function:var(--ease-salida)}
+.hoja{
+  position:fixed;left:0;right:0;bottom:0;z-index:50;
+  background:var(--papel);border-radius:1rem 1rem 0 0;
+  transform:translateY(103%);transition:transform var(--dur-3) var(--ease-salida);
+  max-height:88dvh;overflow-y:auto;
+  padding-bottom:calc(var(--sp-4) + env(safe-area-inset-bottom));
+}
+.hoja.on{transform:translateY(0)}
+/* Al cerrar, visibility corta de golpe: sólo se ve la animación de entrada, por
+   eso hoja y toast usan --ease-salida en los dos sentidos. */
+.hoja:not(.on){visibility:hidden}
+.hoja .asa{width:2.375rem;height:.25rem;background:var(--linea);border-radius:.1875rem;margin:var(--sp-2) auto var(--sp-1)}
+.hoja h2{margin:var(--sp-2) var(--sp-4)}
+.toast{
+  position:fixed;left:var(--sp-4);right:var(--sp-4);
+  bottom:calc(var(--sp-5) + env(safe-area-inset-bottom));
+  background:var(--negro);color:var(--sobre-oscuro);padding:var(--sp-3) var(--sp-4);
+  border-radius:var(--r);font-size:var(--fs-135);z-index:60;
+  transform:translateY(150%);transition:transform var(--dur-2) var(--ease-salida);
+}
+.toast.on{transform:translateY(0)}
+.toast:not(.on){visibility:hidden}
+
+.aviso-sesion{
+  position:fixed;left:var(--sp-4);right:var(--sp-4);
+  top:calc(var(--sp-4) + env(safe-area-inset-top));
+  background:var(--negro);color:var(--sobre-oscuro);
+  padding:var(--sp-3) var(--sp-4);border-radius:var(--r);font-size:var(--fs-135);
+  z-index:70;display:flex;align-items:center;gap:var(--sp-3);justify-content:space-between;
+}
+.aviso-sesion:not(.on){display:none}
+
+/* =====================================================================
+   ≥640px — más aire y listas en dos columnas donde tenga sentido.
+   La navegación sigue abajo.
+   ===================================================================== */
+/* Grilla de RECURSOS: una columna en celular (acá, porque componentes.css se carga después y pisaría el corte de abajo). */
+.rec-grilla{grid-template-columns:minmax(0,1fr)}
+/* Totales de FINANZAS: en celular, uno por renglón con la cifra a la derecha
+   (apilados ocupaban media pantalla); desde 40rem, tres tarjetas en fila. */
+.fin-totales{grid-template-columns:minmax(0,1fr)}
+.fin-total{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;column-gap:var(--sp-3)}
+.fin-total .det{flex-basis:100%;text-align:right}
+@media (min-width:40rem){
+  .fin-totales{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .fin-total{display:block}
+  .fin-total .det{text-align:left}
+  .pad{padding:var(--sp-5) var(--sp-6)}
+  .hoja .video-embed{margin-inline:calc(-1 * var(--sp-6))}
+  .lista-2col{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--sp-3)}
+  .rec-grilla{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .lista-2col > *{margin-bottom:0}
+  .pie-fijo{padding-inline:var(--sp-6)}
+  /* Las categorías una al lado de la otra. Todas iguales en tamaño y en orden
+     de catálogo: la grilla no sugiere que una importe más. */
+  .panorama{grid-template-columns:repeat(auto-fill,minmax(18rem,1fr))}
+
+  /* ---- contención ----
+     Arriba de ~640px las reglas pensadas para 375px empiezan a trabajar en
+     contra: un space-between que separaba 200px pasa a separar 800, y una
+     barra a 1fr se vuelve una cinta. El criterio es que el blanco AL COSTADO
+     de la columna es margen de página y está bien, y el blanco ADENTRO de
+     una fila es un defecto. Esto saca el segundo.
+
+     A propósito NO hay dos columnas: reflowear el contenido es una decisión
+     aparte y hay que tomarla pantalla por pantalla.
+
+     El ".app" de más en las dos últimas no es decorativo: componentes.css se
+     carga DESPUÉS que este archivo, así que a igual especificidad gana él.
+     Son las primeras reglas de layout.css que pisan un selector suyo. */
+  /* El tope de fila sale del ancho de columna menos el padding de .pad, así las
+     filas llenan la columna exacta y no queda franja vacía adentro. Atado a
+     --max-ancho a propósito: un solo número que mover, no dos para mantener
+     sincronizados. */
+  .zona,.curva{max-width:calc(var(--max-ancho) - 2 * var(--sp-6))}
+  .p,.foco-linea{max-width:44rem}
+  .app .acciones-hoy{flex-direction:row;flex-wrap:wrap}
+  .app .acciones-hoy .btn{width:auto;min-width:14rem}
+}
+
+/* =====================================================================
+   ≥1024px — la navegación pasa a lateral fija, el contenido toma un
+   ancho máximo legible y se centra. No es un celular estirado.
+   ===================================================================== */
+@media (min-width:64rem){
+  .app{
+    grid-template-columns:var(--lateral-w) minmax(0,1fr);
+    grid-template-rows:auto auto minmax(0,1fr);
+    grid-template-areas:
+      "nav cabecera"
+      "nav cats"
+      "nav cuerpo";
+  }
+  .nav{
+    flex-direction:column;justify-content:flex-start;gap:var(--sp-1);
+    border-top:0;border-right:3px solid var(--primario);
+    padding:var(--sp-4) var(--sp-2);
+  }
+  .nav button{
+    flex:0 0 auto;flex-direction:row;justify-content:flex-start;gap:var(--sp-3);
+    padding:var(--sp-3);border-radius:var(--r);min-height:2.5rem;
+  }
+  .nav button.on{background:var(--sup-1)}
+  .nav svg{width:1.25rem;height:1.25rem}
+  .nav span{font-size:var(--fs-135);letter-spacing:.08em}
+
+  /* Escudo y club arriba de la navegación, fijos en todas las pantallas. En
+     la cabecera ya no van: ahí quedan volver y el título de la pantalla. */
+  .nav .marca-nav{
+    display:flex;flex-direction:row;align-items:center;gap:var(--sp-3);
+    padding:var(--sp-2) var(--sp-3) var(--sp-4);margin-bottom:var(--sp-3);
+    border-bottom:1px solid var(--linea-osc);border-radius:0;
+    text-align:left;color:var(--sobre-oscuro);
+  }
+  .nav .marca-nav .escudo{width:2.5rem;height:2.5rem;flex:0 0 auto;object-fit:contain}
+  .nav .marca-nav .club{
+    font-family:var(--ff-titulo);font-size:var(--fs-145);font-weight:700;
+    letter-spacing:.06em;text-transform:uppercase;line-height:1.1;color:var(--sobre-oscuro);
+  }
+  .cabecera .inicio{display:none}
+  .cabecera .pantalla-actual{border-left:0;padding-left:0}
+  .cabecera h1{font-size:var(--fs-260)}
+  .cabecera .sub{display:none}
+  /* Sin sesión la navegación no se dibuja, así que la columna lateral no se
+     reserva. Si no, el login queda empujado 224px a la derecha por una barra
+     que no existe — el grid guarda el lugar aunque .nav:empty esté oculto. */
+  .app:has(.nav:empty){
+    grid-template-columns:minmax(0,1fr);
+    grid-template-areas:"cabecera" "cats" "cuerpo";
+  }
+  .cabecera{padding-top:var(--sp-4)}
+  .cuerpo > .pant.on{margin-inline:auto;width:100%;max-width:var(--max-ancho)}
+  /* .pant.ancha: única excepción a --max-ancho, sólo para herramientas-lienzo
+     (hoy, el editor de jugadas). La cabecera sigue alineada a --max-ancho: en
+     estas pantallas el título queda un poco más adentro que la barra, y se acepta. */
+  .cuerpo > .pant.ancha.on{max-width:none}
+  /* Título y chips arrancan en el mismo margen izquierdo que el contenido: el
+     borde de la columna centrada (la misma cuenta que .pant.on) más el
+     padding de .pad. Antes centraban sin ese padding y el título, empujado
+     además por el lugar de volver, flotaba a la derecha del contenido.
+
+     El lugar de volver cuelga a la izquierda de ese margen, así el título
+     queda alineado con o sin flecha. Si no hay espacio para colgarlo (entre
+     1024 y ~1130px de ancho) el padding mínimo lo mantiene adentro de la
+     cabecera: ahí el título queda un poco a la derecha, siempre en la misma X.
+
+     scrollbar-gutter both-edges: la barra de scroll del cuerpo le come ancho
+     sólo al cuerpo y correría la columna centrada respecto de la cabecera,
+     que no tiene barra. Reservándola a los dos lados, las dos centran igual. */
+  .cuerpo{scrollbar-gutter:stable both-edges}
+  .cabecera,.cats{padding-inline:calc(max(0px, (100% - var(--max-ancho)) / 2) + var(--sp-6))}
+  .cabecera{padding-left:max(calc(var(--tap) + var(--sp-1) + var(--sp-3)), calc(max(0px, (100% - var(--max-ancho)) / 2) + var(--sp-6)))}
+  .cabecera .pantalla-actual{margin-left:calc(-1 * (var(--tap) + var(--sp-1)))}
+  .cabecera{justify-content:flex-start}
+  .pie-fijo{
+    position:static;background:none;padding-inline:0;
+    max-width:var(--max-ancho);margin-inline:auto;
+    flex-direction:row;justify-content:flex-end;
+  }
+  .pie-fijo .btn{width:auto;min-width:14rem}
+  .hoja{
+    left:50%;right:auto;bottom:auto;top:50%;
+    transform:translate(-50%,-50%) scale(.96);
+    width:min(32rem,calc(100vw - 4rem));
+    border-radius:var(--r);max-height:80dvh;
+  }
+  .hoja.on{transform:translate(-50%,-50%) scale(1)}
+  .hoja:has(.video-embed){width:min(56rem,calc(100vw - 4rem))}
+  .toast{left:auto;right:var(--sp-6);bottom:var(--sp-6);max-width:24rem}
+}
+
+/* =====================================================================
+   Shell público (landing y autenticación). Estas reglas vivían en
+   publico.css, pero la regla del proyecto es que TODA media query de ancho
+   esté en este archivo.
+
+   Van prefijadas con .publico por dos motivos. Las deja en cuarentena del
+   resto de la app, que era la intención de publico.css. Y les da
+   especificidad 0,2,0: publico.css se carga DESPUÉS que este archivo, así
+   que sin el prefijo sus reglas base (0,1,0) ganarían por orden de cascada
+   y la landing perdería su versión de escritorio sin que nada avise.
+   ===================================================================== */
+@media (min-width:40rem){
+  .publico .marca{padding-top:var(--sp-8)}
+  .publico .hero{padding:var(--sp-8) var(--sp-6) var(--sp-6)}
+  .publico .beneficios{grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--sp-4);padding-inline:var(--sp-6);max-width:64rem;margin-inline:auto}
+  .publico .acciones-landing{flex-direction:row;justify-content:center;max-width:30rem}
+  .publico .futuro{padding-inline:var(--sp-6)}
+  /* Portal: las bandas con esquinas y más aire, atajos en una fila,
+     formularios y categorías en dos columnas. */
+  .publico .portal-barra,.publico .portal-atajos,.publico .portal-sec{padding-inline:var(--sp-6)}
+  .publico .portal-barra{padding-top:var(--sp-5)}
+  .publico .portal-barra .s{display:block}
+  /* La hoja de Ayuda: un diálogo centrado. */
+  .publico .portal-hoja{inset:0;margin:auto;width:min(40rem,calc(100vw - 4rem));max-height:80dvh;border-radius:var(--r);border:1px solid var(--pub-borde);animation:none}
+  .publico .portal-hoja-cuerpo{max-height:80dvh;padding:var(--sp-6)}
+  .publico .portal-sem-btn{max-width:none;white-space:nowrap}
+  .publico .portal-heroe,.publico .portal-banda{margin-inline:var(--sp-6);border-radius:var(--r);padding:var(--sp-8)}
+  .publico .portal-heroe h1{max-width:none}
+  .publico .portal-heroe-bajada{max-width:32rem;margin-bottom:var(--sp-6)}
+  /* Las dos tarjetas lado a lado, del mismo alto. */
+  .publico .portal-acciones{grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--sp-4);max-width:52rem}
+  .publico .portal-accion.principal{height:100%}
+  .publico .portal-formas{grid-template-columns:repeat(2,minmax(0,1fr))}
+  /* La categoría: el año a la izquierda y el resultado al lado, ocupando todo el ancho. */
+  .publico .portal-buscador{grid-template-columns:minmax(15rem,18rem) 1fr;align-items:end;gap:var(--sp-4)}
+  .publico .portal-atajos{grid-template-columns:repeat(auto-fit,minmax(9rem,1fr));gap:var(--sp-3)}
+  .publico .portal-atajos a{flex-direction:row;justify-content:center;font-size:var(--fs-145);padding:var(--sp-3)}
+  .publico .portal-lista{grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--sp-4)}
+  .publico .portal-cats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .publico .portal-cats li + li{border-top:0}
+  .publico .portal-cats li:nth-child(n+3){border-top:1px solid var(--pub-borde)}
+  .publico .portal-cats li:nth-child(even){border-left:1px solid var(--pub-borde)}
+  .publico .portal-logos-lista{grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--sp-4)}
+  /* Bento en 2 columnas: las anchas y las altas ocupan el ancho completo; las dos últimas van lado a lado. */
+  .publico .ben.ancha,.publico .ben.alta{grid-column:1 / -1}
+}
+@media (min-width:64rem){
+  .publico .beneficios{grid-template-columns:repeat(3,minmax(0,1fr))}
+  /* Portal: la grilla del mes a la izquierda y lo del día a la derecha. */
+  .publico .portal-cal{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);grid-template-areas:"cab cab" "ley dia" "grilla dia";grid-template-rows:auto auto 1fr}
+  .publico .portal-cal-cab{grid-area:cab}
+  .publico .portal-ley{grid-area:ley;align-self:start}
+  .publico .portal-grilla{grid-area:grilla;padding:var(--sp-2) var(--sp-4) var(--sp-4)}
+  .publico .portal-dia{min-height:3.5rem}
+  .publico .portal-cal-dia{grid-area:dia;border-top:0;border-left:1px solid var(--pub-borde);padding:var(--sp-4) var(--sp-5)}
+  /* Bento en 3 columnas: .ancha ocupa 2 y .alta ocupa 2 filas (queda 1 columna). */
+  .publico .ben.ancha{grid-column:span 2}
+  .publico .ben.alta{grid-column:auto;grid-row:span 2}
+  .publico .ben:last-child{grid-column:1 / -1}
+  /* La pizarra es cuadrada: al costado del texto la tarjeta no queda altísima. */
+  .publico .ben[data-demo="jugadas"]{display:grid;grid-template-columns:minmax(0,15rem) minmax(0,1fr);column-gap:var(--sp-6);align-content:center}
+  .publico .ben[data-demo="jugadas"] .demo{grid-row:1 / span 2;margin-bottom:0}
+  .publico .ben[data-demo="jugadas"] .t{grid-column:2;align-self:end}
+  .publico .ben[data-demo="jugadas"] .d{grid-column:2;align-self:start}
+  /* Hero en dos columnas: texto a la izquierda, escudo más grande a la derecha. */
+  .publico .hero{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;column-gap:var(--sp-8);max-width:64rem;margin-inline:auto;text-align:left}
+  .publico .hero .escudo-anillo{width:14rem;height:14rem;order:2;margin:0}
+  .publico .hero .bajada{margin-left:0}
+}
+
+/* Editor de jugadas: en tablet vertical (mobile-first, la barra arriba como
+   fila de íconos y el panel abajo de la cancha) desde acá la barra pasa a
+   columna fija a la izquierda y el panel a columna fija a la derecha, los
+   tres en fila. Selectores con `.pant.ancha` (no sólo `.jed-cuerpo`/
+   `.jed-cancha`/...) a propósito: componentes.css se carga DESPUÉS de este
+   archivo, así que sus reglas base (una sola clase, sin media query) le
+   ganarían por orden de cascada a éstas si tuvieran la misma especificidad —
+   el mismo motivo del prefijo `.publico` más abajo. Sin el extra de
+   especificidad, el editor quedaba siempre en columna aunque el viewport
+   matcheara: el bug original. */
+@media (min-width:64rem){
+  .pant.ancha .jed-cuerpo{flex-direction:row;align-items:flex-start}
+  .pant.ancha .jed-barra{flex:0 0 5rem;flex-direction:column;align-items:stretch}
+  .pant.ancha .jed-cancha{flex:1;min-width:0;display:flex;justify-content:center}
+  /* La cancha se topa por alto para que entre completa (media o entera) sin
+     scroll vertical. La resta aproxima cabecera + barra de categorías con
+     tokens (dos franjas de --tap, ya no tres: la barra de herramientas es
+     una columna al costado, no una franja arriba) más paddings de --sp-8, el
+     padding-top de .jed en componentes.css y el padding-bottom de .pant.on:
+     no hay forma de medirlas exacto acá porque las arma JS con datos de
+     sesión. Si en algún ancho no cierra justo, se prefiere quedar corto (un
+     poco de aire abajo) antes que generar scroll. */
+  .pant.ancha .jed-cancha svg.pz{
+    max-height:calc(100dvh - var(--tap) * 2 - var(--sp-8) * 2 - var(--sp-5) - var(--sp-3));
+    width:auto;max-width:100%;margin-inline:auto;
+  }
+  .pant.ancha .jed-panel{flex:0 0 20rem}
+}
+
+/* Ficha de una jugada (p-jugada, NO .pant.ancha): la cancha se topa por alto
+   para que entre entera (media o entera) sin scroll. Prefijada con #p-jugada
+   porque el mismo markup .visor-jugada se reusa en el modal "Ver animación"
+   del editor (.jvc): ese modal no debe verse afectado. La resta aproxima
+   cabecera + barra de categorías + .ficha-top (tres franjas de --tap), el
+   padding de .pad y de .visor-jugada, y el bloque de nota+controles+
+   velocidades+indicador debajo de la cancha: no hay forma de medirlas exacto
+   acá porque .ficha-top y la nota las arma JS con datos de la jugada. Si en
+   algún ancho no cierra justo, se prefiere quedar corto (un poco de aire
+   abajo) antes que generar scroll. */
+@media (min-width:64rem){
+  #p-jugada .visor-jugada svg.pz{
+    max-height:calc(100dvh - var(--tap) * 4 - var(--sp-8) * 2 - var(--sp-5) - var(--sp-3) * 4);
+  }
+}
+
+/* Hover solo donde hay puntero fino: en táctil no debe ser señal de nada. */
+@media (hover:hover){
+  /* El texto ya es blanco siempre: el hover no puede aclararlo. */
+  .nav button:hover span{text-decoration:underline;text-underline-offset:.2em}
+  .cabecera .salir:hover{color:var(--sobre-oscuro)}
+  .cat:hover{background:var(--sup-2)}
+  .cat.on:hover{background:var(--primario-osc)}
+}

@@ -1,0 +1,454 @@
+import {
+  obtenerPlantelesDelClub, obtenerCatalogoDeCategorias, obtenerTemporadasDelClub,
+  obtenerMiembrosDelClub, obtenerAsignacionesDelClub, obtenerUsuariosPendientes,
+  obtenerUsuarioActual, asignarPlanteles, cerrarAsignacion, descartarCuenta,
+  buscarJugadorParaHabilitar, darDeBajaProfe,
+} from '../../data/repositorio.js';
+import { armarProfes } from '../../data/coordinacion.js';
+import { obtenerClubActual } from '../sesion.js';
+import { escaparHtml, toast, formatearFechaCorta } from '../nav.js';
+import { abrirHoja, cerrarHoja } from '../componentes/hoja.js';
+import { verDetallesHtml } from '../componentes/verDetalles.js';
+import { ir } from '../main.js';
+import { abrirEmergencias } from './emergencias.js';
+import { $ } from '../dom.js';
+import { html } from '../html.js';
+import { mensajeAlGuardar, textoDeError } from '../errores.js';
+
+const contenedor = () => $('coord-profes-contenido');
+
+/**
+ * Quién tiene acceso a qué, y el único lugar desde donde se cambia.
+ *
+ * Todo lo que se ve acá lo garantiza la base, no esta pantalla: un entrenador
+ * que llegara hasta acá no podría leer pendientes ni asignar nada (0017).
+ * La pantalla sólo evita ofrecer lo que la base va a rechazar — por ejemplo,
+ * que el coordinador se asigne a sí mismo.
+ */
+
+let vista = null;
+
+const mensajeDeError = (e) => mensajeAlGuardar(e, {
+  reglas: [
+    [/SIN_CATEGORIAS/, 'Marcá al menos una categoría.'],
+    [/NO_ES_ENTRENADOR/, 'Esa cuenta es de coordinación. Para que además entrene, hay que dárselo desde la base.'],
+    [/YA_ES_DEL_CLUB/, 'Esa cuenta ya es del club. Actualizá la lista.'],
+    [/ES_JUGADOR/, 'Esa cuenta es de un jugador: se la puede habilitar como profe, no rechazar.'],
+    [/DADO_DE_BAJA/, 'Esa cuenta está dada de baja: reactivarla no se hace desde acá.'],
+    [/ES_COORDINACION/, 'Esa cuenta es de coordinación: no se la puede dar de baja desde acá.'],
+    [/NO_ES_UNO_MISMO/, 'No podés darte de baja a vos mismo.'],
+    [/YA_DADO_DE_BAJA/, 'Esa cuenta ya está dada de baja.'],
+  ],
+  permiso: /NO_SE_PUDO_CERRAR|row-level security|permission denied|42501/i,
+});
+
+/* ---------- bloques ---------- */
+
+function pendientesHtml(pendientes) {
+  if (!pendientes.length) return html`<div class="p">No hay cuentas esperando acceso.</div>`;
+  return html`${pendientes.map((u) => html`
+    <div class="jug-fila">
+      <div style="flex:1;min-width:0">
+        <div class="nom">${u.nombre || u.email}</div>
+        <div class="det">${u.nombre ? `${u.email} · ` : ''}${u.esJugador ? 'Es jugador del club · ' : ''}Se registró el ${formatearFechaCorta(u.registradoEn.slice(0, 10))}</div>
+      </div>
+      ${!u.esJugador && html`<button class="btn sec chico" data-descartar="${u.userId}">Rechazar</button>`}
+      <button class="btn chico" data-habilitar="${u.userId}">Habilitar</button>
+    </div>
+  `)}`;
+}
+
+function sinProfeHtml(sinProfe) {
+  if (!sinProfe.length) return '<div class="p">Todas las categorías de la temporada tienen al menos un profe.</div>';
+  return sinProfe.map((p) => `
+    <div class="jug-fila">
+      <div class="nom">${escaparHtml(p.categoria)}</div>
+      <button class="btn sec chico" data-asignar-plantel="${p.id}">Asignar</button>
+    </div>
+  `).join('');
+}
+
+// Sólo recibe profes activos (sin bajaEn): los dados de baja van en su propia
+// lista, detrás de "Ver ex miembros" — no tiene sentido ofrecerles asignar
+// categorías ni volver a darlos de baja, y antes ese texto de estado se
+// mezclaba con la lista de gente activa y le comía lugar.
+function profeHtml(p) {
+  const roles = [p.esEntrenador && 'Entrenador', p.esCoordinador && 'Coordinación'].filter(Boolean).join(' · ');
+  // El propio coordinador no se edita desde acá (la base lo rechaza), y a un
+  // coordinador puro no se le asignan categorías (NO_ES_ENTRENADOR).
+  const editable = p.esEntrenador && !p.esUnoMismo;
+  // dar_de_baja_profe rechaza a uno mismo y a coordinación (NO_ES_UNO_MISMO, ES_COORDINACION).
+  const sePuedeDarDeBaja = !p.esUnoMismo && !p.esCoordinador;
+  const categorias = p.categorias.map((c) => `
+    <div class="profe-cat">
+      <div style="flex:1;min-width:0">
+        <span class="nom">${escaparHtml(c.etiqueta)}</span>
+        ${c.origen === 'migracion' ? '<div class="det">Asignada al activar el panel — confirmá que corresponde</div>' : ''}
+      </div>
+      ${editable ? `<button class="btn sec chico" data-quitar="${c.asignacionId}" data-profe="${p.userId}">Quitar</button>` : ''}
+    </div>
+  `).join('');
+  return `
+    <div class="profe">
+      <div class="nom">${escaparHtml(p.etiqueta)}${p.esUnoMismo ? ' <span class="det">(vos)</span>' : ''}</div>
+      <div class="det">${roles}${p.etiqueta !== p.email ? ` · ${escaparHtml(p.email)}` : ''}</div>
+      ${categorias || (p.esEntrenador ? '<span class="chip sin">Sin categorías</span>' : '')}
+      ${editable ? `<button class="btn sec chico" data-asignar-a="${p.userId}">Asignar categorías</button>` : ''}
+      ${sePuedeDarDeBaja ? `<button class="btn sec chico" data-dar-de-baja="${p.userId}">Dar de baja</button>` : ''}
+    </div>
+  `;
+}
+
+/** La lista de dados de baja: sólo el nombre, el mail y desde cuándo. Nada que tocar. */
+function exMiembroHtml(p) {
+  return `
+    <div class="profe">
+      <div class="nom">${escaparHtml(p.etiqueta)}</div>
+      <div class="det">${p.etiqueta !== p.email ? `${escaparHtml(p.email)} · ` : ''}Dado de baja el ${formatearFechaCorta(p.bajaEn.slice(0, 10))}</div>
+    </div>
+  `;
+}
+
+/* ---------- hojas ---------- */
+
+function abrirElegirCategorias({ titulo, texto, planteles, textoBoton, alConfirmar }) {
+  if (!planteles.length) {
+    toast('No quedan categorías de esta temporada para asignar.');
+    return;
+  }
+  abrirHoja({
+    titulo,
+    cuerpo: `
+      <div class="p">${texto}</div>
+      <div id="casillas">
+        ${planteles.map((p) => `
+          <button class="jug-fila casilla" data-plantel="${p.id}" aria-pressed="false">
+            <span class="nom">${escaparHtml(p.categoria)}</span>
+            <span class="chk"></span>
+          </button>
+        `).join('')}
+      </div>
+      <div class="acciones">
+        <button class="btn" id="btn-confirmar-asignacion" disabled>${escaparHtml(textoBoton)}</button>
+        <button class="btn sec" id="btn-cancelar-asignacion">Cancelar</button>
+      </div>
+    `,
+  });
+
+  const elegidos = new Set();
+  document.querySelectorAll('#casillas [data-plantel]').forEach((boton) => {
+    boton.addEventListener('click', () => {
+      const id = boton.dataset.plantel;
+      if (elegidos.has(id)) elegidos.delete(id); else elegidos.add(id);
+      const marcado = elegidos.has(id);
+      boton.setAttribute('aria-pressed', String(marcado));
+      const chk = boton.querySelector('.chk');
+      chk.classList.toggle('on', marcado);
+      chk.textContent = marcado ? '✓' : '';
+      $('btn-confirmar-asignacion').disabled = elegidos.size === 0;
+    });
+  });
+  $('btn-cancelar-asignacion').addEventListener('click', () => cerrarHoja());
+  $('btn-confirmar-asignacion').addEventListener('click', async () => {
+    const boton = $('btn-confirmar-asignacion');
+    if (boton.disabled) return;
+    boton.disabled = true;
+    boton.textContent = 'Guardando...';
+    try {
+      await alConfirmar([...elegidos]);
+      cerrarHoja();
+      await renderProfes();
+    } catch (e) {
+      toast(mensajeDeError(e));
+      boton.disabled = false;
+      boton.textContent = textoBoton;
+    }
+  });
+}
+
+function abrirHabilitar(pendiente) {
+  const club = obtenerClubActual();
+  const quien = pendiente.nombre || pendiente.email;
+  abrirElegirCategorias({
+    titulo: 'Habilitar',
+    texto: `${escaparHtml(quien)} va a poder entrar como entrenador y ver sólo las categorías que marques. La biblioteca de ejercicios la ve entera.${pendiente.esJugador ? ' Como hoy es jugador del club, su acceso de jugador se cierra: deja de ver su ficha y pasa a entrar sólo como profe.' : ''}`,
+    planteles: vista.plantelesDeLaTemporada,
+    textoBoton: 'Habilitar y asignar',
+    alConfirmar: async (plantelIds) => {
+      const r = await asignarPlanteles({ userId: pendiente.userId, clubId: club.id, plantelIds });
+      toast(`Listo: ${quien} ya puede entrar, con ${r.asignadas} categoría${r.asignadas === 1 ? '' : 's'}.`);
+    },
+  });
+}
+
+/**
+ * Rechazar es reversible (la cuenta puede volver a pedir desde su pantalla),
+ * pero mientras tanto desaparece de la lista: por eso pide confirmación.
+ */
+function abrirDescartar(pendiente) {
+  const club = obtenerClubActual();
+  const quien = pendiente.nombre || pendiente.email;
+  abrirHoja({
+    titulo: 'Rechazar',
+    cuerpo: html`
+      <div class="p">${quien} sale de la lista y no entra a la app.</div>
+      <div class="p">Si fue un error, puede volver a pedir el acceso desde su cuenta y va a aparecer de nuevo acá.</div>
+      <div class="acciones">
+        <button class="btn" id="btn-confirmar-descartar">Rechazar</button>
+        <button class="btn sec" id="btn-cancelar-descartar">Cancelar</button>
+      </div>
+    `.toString(),
+  });
+  $('btn-cancelar-descartar').addEventListener('click', () => cerrarHoja());
+  $('btn-confirmar-descartar').addEventListener('click', async () => {
+    const boton = $('btn-confirmar-descartar');
+    if (boton.disabled) return;
+    boton.disabled = true;
+    try {
+      await descartarCuenta({ userId: pendiente.userId, clubId: club.id });
+      cerrarHoja();
+      toast(`Listo: ${quien} ya no figura en la lista.`);
+      await renderProfes();
+    } catch (e) {
+      toast(mensajeDeError(e));
+      boton.disabled = false;
+    }
+  });
+}
+
+function abrirAsignarA(profe) {
+  const club = obtenerClubActual();
+  const yaTiene = new Set(profe.categorias.map((c) => c.plantelId));
+  abrirElegirCategorias({
+    titulo: `Asignar a ${profe.etiqueta}`,
+    texto: 'Marcá las categorías que suma. Las que ya tiene no aparecen.',
+    planteles: vista.plantelesDeLaTemporada.filter((p) => !yaTiene.has(p.id)),
+    textoBoton: 'Asignar',
+    alConfirmar: async (plantelIds) => {
+      await asignarPlanteles({ userId: profe.userId, clubId: club.id, plantelIds });
+      toast('Listo.');
+    },
+  });
+}
+
+function abrirElegirProfe(plantel) {
+  const club = obtenerClubActual();
+  const candidatos = vista.profes.filter((p) => p.esEntrenador && !p.esUnoMismo);
+  if (!candidatos.length) {
+    toast('Todavía no hay entrenadores habilitados. Habilitá a alguien desde Esperando acceso.');
+    return;
+  }
+  abrirHoja({
+    titulo: `Asignar ${plantel.categoria}`,
+    cuerpo: `
+      <div class="p">¿Quién queda a cargo de ${escaparHtml(plantel.categoria)}?</div>
+      <div id="candidatos">
+        ${candidatos.map((p) => `
+          <button class="jug-fila casilla" data-candidato="${p.userId}"><span class="nom">${escaparHtml(p.etiqueta)}</span></button>
+        `).join('')}
+      </div>
+      <div class="acciones"><button class="btn sec" id="btn-cancelar-asignacion">Cancelar</button></div>
+    `,
+  });
+  $('btn-cancelar-asignacion').addEventListener('click', () => cerrarHoja());
+  const botones = document.querySelectorAll('#candidatos [data-candidato]');
+  botones.forEach((boton) => {
+    boton.addEventListener('click', async () => {
+      if (boton.disabled) return;
+      botones.forEach((b) => { b.disabled = true; });
+      try {
+        await asignarPlanteles({ userId: boton.dataset.candidato, clubId: club.id, plantelIds: [plantel.id] });
+        cerrarHoja();
+        toast('Listo.');
+        await renderProfes();
+      } catch (e) {
+        toast(mensajeDeError(e));
+        botones.forEach((b) => { b.disabled = false; });
+      }
+    });
+  });
+}
+
+/**
+ * Quitar lleva confirmación y habilitar no: cortarle el acceso a alguien en
+ * medio de su trabajo es lo que duele si fue un dedazo.
+ */
+function abrirQuitar(profe, categoria) {
+  abrirHoja({
+    titulo: `Quitar ${categoria.etiqueta}`,
+    cuerpo: `
+      <div class="p">${escaparHtml(profe.etiqueta)} deja de ver ${escaparHtml(categoria.etiqueta)} desde ahora.</div>
+      <div class="p">Lo que cargó queda en el club, y la asignación queda registrada con su fecha de cierre.</div>
+      <div class="acciones">
+        <button class="btn" id="btn-confirmar-quitar">Quitar ${escaparHtml(categoria.etiqueta)}</button>
+        <button class="btn sec" id="btn-cancelar-quitar">Cancelar</button>
+      </div>
+    `,
+  });
+  $('btn-cancelar-quitar').addEventListener('click', () => cerrarHoja());
+  $('btn-confirmar-quitar').addEventListener('click', async () => {
+    const boton = $('btn-confirmar-quitar');
+    if (boton.disabled) return;
+    boton.disabled = true;
+    try {
+      await cerrarAsignacion(categoria.asignacionId);
+      cerrarHoja();
+      toast(`Listo: ${profe.etiqueta} ya no ve ${categoria.etiqueta}.`);
+      await renderProfes();
+    } catch (e) {
+      toast(mensajeDeError(e));
+      boton.disabled = false;
+    }
+  });
+}
+
+/**
+ * A diferencia de Quitar (una sola categoría), esto cierra TODAS las
+ * asignaciones del profe y lo marca de baja: deja de ver el plantel entero.
+ * Lo que cargó no se toca. Lleva confirmación por lo mismo que Quitar: es lo
+ * que más duele si fue un dedazo.
+ */
+function abrirDarDeBaja(profe) {
+  const club = obtenerClubActual();
+  abrirHoja({
+    titulo: `Dar de baja a ${profe.etiqueta}`,
+    cuerpo: `
+      <div class="p">${escaparHtml(profe.etiqueta)} deja de ver el plantel entero desde ahora. Lo que cargó queda en el club; su historia no se borra.</div>
+      <div class="acciones">
+        <button class="btn" id="btn-confirmar-baja">Dar de baja</button>
+        <button class="btn sec" id="btn-cancelar-baja">Cancelar</button>
+      </div>
+    `,
+  });
+  $('btn-cancelar-baja').addEventListener('click', () => cerrarHoja());
+  $('btn-confirmar-baja').addEventListener('click', async () => {
+    const boton = $('btn-confirmar-baja');
+    if (boton.disabled) return;
+    boton.disabled = true;
+    try {
+      await darDeBajaProfe({ userId: profe.userId, clubId: club.id });
+      cerrarHoja();
+      toast(`Listo: ${profe.etiqueta} está dado de baja.`);
+      await renderProfes();
+    } catch (e) {
+      toast(mensajeDeError(e));
+      boton.disabled = false;
+    }
+  });
+}
+
+/* ---------- pantalla ---------- */
+
+export async function renderProfes() {
+  const club = obtenerClubActual();
+  if (!club) return;
+  contenedor().innerHTML = '<div class="pad"><div class="p" role="status">Cargando…</div></div>';
+
+  let notaCodigos = '';
+  try {
+    const [planteles, catalogo, temporadas, miembros, asignaciones, pendientes, usuarioActualId] = await Promise.all([
+      obtenerPlantelesDelClub(club.id),
+      obtenerCatalogoDeCategorias(),
+      obtenerTemporadasDelClub(club.id),
+      obtenerMiembrosDelClub(club.id),
+      obtenerAsignacionesDelClub(club.id),
+      obtenerUsuariosPendientes(),
+      obtenerUsuarioActual(),
+    ]);
+    vista = armarProfes({ planteles, catalogo, temporadas, miembros, asignaciones, pendientes, usuarioActualId });
+
+    // Los códigos de Mayores no se leen solos. Se aclaran una vez, acá arriba,
+    // y no en cada lugar donde aparecen. Salen del catálogo, no escritos a mano.
+    const mayores = catalogo.filter((c) => c.codigo.startsWith('MAY_')
+      && vista.plantelesDeLaTemporada.some((p) => p.categoriaCodigo === c.codigo));
+    if (mayores.length) {
+      const verbo = mayores.length === 1 ? 'es' : 'son';
+      notaCodigos = `${mayores.map((c) => c.codigo).join(' y ')} ${verbo} ${mayores.map((c) => c.nombre).join(' y ')}.`;
+    }
+  } catch (e) {
+    const mensaje = textoDeError(e, 'No se pudo cargar la lista de profes.');
+    contenedor().innerHTML = `<div class="pad"><div class="p">${mensaje}</div></div>`;
+    return;
+  }
+
+  contenedor().innerHTML = `
+    <div class="pad">
+      ${notaCodigos ? `<div class="p nota-codigos">${escaparHtml(notaCodigos)}</div>` : ''}
+      <div class="eyebrow">Esperando acceso <span class="der">${vista.pendientes.length}</span></div>
+      ${pendientesHtml(vista.pendientes)}
+
+      <div class="campo">
+        <label for="in-buscar-jugador">¿Un jugador va a ser profe? Buscalo por mail</label>
+        <input id="in-buscar-jugador" type="email" autocomplete="off" spellcheck="false" placeholder="mail@ejemplo.com">
+        <button class="btn sec chico" id="btn-buscar-jugador">Buscar</button>
+        <div id="buscar-jugador-resultado"></div>
+      </div>
+
+      <div class="campo">
+        <button class="btn sec" id="btn-cambio-temporada">Cambio de temporada</button>
+      </div>
+
+      <div class="eyebrow">Datos de emergencia</div>
+      <p class="p">Teléfonos y alertas médicas de cada categoría, sólo para leer. Los carga el profe de la categoría.</p>
+      <div class="lista-2col">${vista.plantelesDeLaTemporada.map((p) => `<button class="btn sec chico" data-emergencias="${escaparHtml(p.id)}">${escaparHtml(p.categoria)}</button>`).join('')}</div>
+
+      <div class="eyebrow">Categorías sin profe</div>
+      ${sinProfeHtml(vista.sinProfe)}
+
+      <div class="eyebrow">Profes del club</div>
+      <div class="lista-2col">${vista.profes.filter((p) => !p.bajaEn).map(profeHtml).join('')}</div>
+      ${verDetallesHtml('Ex miembros del club', [{
+        nombre: 'Ex miembros',
+        html: vista.profes.filter((p) => p.bajaEn).map(exMiembroHtml).join(''),
+      }])}
+    </div>
+  `;
+
+  contenedor().querySelectorAll('[data-emergencias]').forEach((b) => b.addEventListener('click', () => {
+    abrirEmergencias({ plantel: vista.plantelesDeLaTemporada.find((p) => p.id === b.dataset.emergencias) });
+  }));
+  $('btn-cambio-temporada').addEventListener('click', () => ir('p-coord-temporada', { push: true }));
+  contenedor().querySelectorAll('[data-habilitar]').forEach((b) => b.addEventListener('click', () => {
+    abrirHabilitar(vista.pendientes.find((u) => u.userId === b.dataset.habilitar));
+  }));
+  contenedor().querySelectorAll('[data-descartar]').forEach((b) => b.addEventListener('click', () => {
+    abrirDescartar(vista.pendientes.find((u) => u.userId === b.dataset.descartar));
+  }));
+  contenedor().querySelectorAll('[data-asignar-plantel]').forEach((b) => b.addEventListener('click', () => {
+    abrirElegirProfe(vista.sinProfe.find((p) => p.id === b.dataset.asignarPlantel));
+  }));
+  contenedor().querySelectorAll('[data-asignar-a]').forEach((b) => b.addEventListener('click', () => {
+    abrirAsignarA(vista.profes.find((p) => p.userId === b.dataset.asignarA));
+  }));
+  contenedor().querySelectorAll('[data-quitar]').forEach((b) => b.addEventListener('click', () => {
+    const profe = vista.profes.find((p) => p.userId === b.dataset.profe);
+    abrirQuitar(profe, profe.categorias.find((c) => c.asignacionId === b.dataset.quitar));
+  }));
+  contenedor().querySelectorAll('[data-dar-de-baja]').forEach((b) => b.addEventListener('click', () => {
+    abrirDarDeBaja(vista.profes.find((p) => p.userId === b.dataset.darDeBaja));
+  }));
+
+  $('btn-buscar-jugador').addEventListener('click', buscarJugadorPorMail);
+}
+
+async function buscarJugadorPorMail() {
+  const club = obtenerClubActual();
+  const email = $('in-buscar-jugador').value.trim();
+  const resultado = $('buscar-jugador-resultado');
+  if (!email) return;
+  const boton = $('btn-buscar-jugador');
+  boton.disabled = true;
+  resultado.textContent = '';
+  try {
+    const encontrado = await buscarJugadorParaHabilitar({ clubId: club.id, email });
+    if (!encontrado) {
+      resultado.textContent = 'No encontramos ningún jugador con ese mail en el club.';
+    } else {
+      abrirHabilitar(encontrado);
+    }
+  } catch (e) {
+    resultado.textContent = mensajeDeError(e);
+  } finally {
+    boton.disabled = false;
+  }
+}

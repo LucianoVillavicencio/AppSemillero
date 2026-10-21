@@ -1,0 +1,480 @@
+import {
+  iniciarSesion, crearCuenta, enviarRecuperacionDeClave, cambiarClave,
+  entrarConGoogle, cerrarSesion, alCambiarAuth, guardarMiNombre,
+  miPedidoDescartado, volverAPedirAcceso, fueSalidaVoluntaria, aceptarLegal,
+} from '../data/repositorio.js';
+import { normalizarNombre } from '../data/cuenta.js';
+import { VERSION_LEGAL } from '../data/legal.js';
+import { esErrorDeRed } from './nav.js';
+import { $ } from './dom.js';
+import { iniciarLandingAnimada } from './landingAnimada.js';
+import { SIN_CONEXION, textoDeError, marcarSesionCerrada, desmarcarSesionCerrada } from './errores.js';
+import {
+  iniciarSolicitudJugador, abrirSolicitudJugador, solicitudPendiente, textoDeSolicitudPendiente,
+} from './pantallas/solicitudJugador.js';
+
+/**
+ * Shell público: landing, ingresar, crear cuenta, recuperar la clave, poner
+ * una clave nueva, y la cuenta que todavía no tiene club.
+ *
+ * Todo lo de autenticación de verdad lo hace Supabase Auth. Acá no se hashea
+ * nada, no se emite ningún token y no se guarda ninguna sesión a mano: lo
+ * único que vive en este archivo es validación de formulario para dar buen
+ * feedback antes del viaje al servidor, y el cableado de las vistas.
+ */
+
+/** Sólo para avisar temprano. El largo real lo exige Supabase. */
+const CLAVE_MINIMA = 8;
+
+let alEntrar = async () => {};
+
+// Qué eligió la persona en "¿Quién sos?" antes de crear la cuenta. El login es uno solo (la cuenta no
+// sabe qué es hasta que la base le da acceso); lo que cambia es la explicación
+// y llevar al jugador, apenas entra, al formulario de pedir acceso.
+let modoDeAlta = 'profe';
+
+const TEXTOS_DE_ALTA = {
+  profe: {
+    titulo: 'Cuenta de profe',
+    sub: 'Creá tu cuenta con tu mail. Después el coordinador de tu club te da acceso a tus categorías: hasta entonces no ves datos del club.',
+  },
+  jugador: {
+    titulo: 'Cuenta de jugador',
+    sub: 'Creá tu cuenta con tu mail. Después elegís tu club y tu categoría, y el entrenador de tu categoría aprueba tu pedido: hasta entonces no ves nada.',
+  },
+};
+
+function abrirAlta(modo) {
+  modoDeAlta = modo;
+  limpiarErrores();
+  $('cr-titulo').textContent = TEXTOS_DE_ALTA[modo].titulo;
+  $('cr-sub').textContent = TEXTOS_DE_ALTA[modo].sub;
+  mostrarPublico('v-crear');
+}
+
+/* ---------- vistas ---------- */
+
+export function mostrarPublico(vista) {
+  $('app').hidden = true;
+  $('publico').hidden = false;
+  document.querySelectorAll('#publico .vista').forEach((v) => v.classList.toggle('on', v.id === vista));
+  window.scrollTo(0, 0);
+}
+
+export function mostrarApp() {
+  $('publico').hidden = true;
+  $('app').hidden = false;
+}
+
+export function mostrarLanding() {
+  limpiarErrores();
+  mostrarPublico('v-landing');
+}
+
+/** La cuenta existe pero no tiene fila en miembro_club. No es un error. */
+export function mostrarSinClub(email) {
+  $('sin-club-mail').textContent = email ?? '—';
+  mostrarPublico('v-sin-club');
+  mostrarSolicitudEnSinClub();
+  mostrarRechazoEnSinClub();
+}
+
+/**
+ * Si la cuenta ya pidió acceso como jugador, se lo dice acá: al volver a
+ * entrar tiene que ver que su pedido sigue esperando, y no otra vez un botón
+ * que parece no haber hecho nada.
+ */
+async function mostrarSolicitudEnSinClub() {
+  const aviso = $('sin-club-solicitud');
+  aviso.hidden = true;
+  $('btn-sin-club-jugador').textContent = 'Soy jugador de un club';
+  const pendiente = await solicitudPendiente();
+  if (!pendiente) return;
+  aviso.textContent = textoDeSolicitudPendiente(pendiente);
+  aviso.hidden = false;
+  $('btn-sin-club-jugador').textContent = 'Ver mi solicitud';
+}
+
+/**
+ * Si coordinación rechazó el pedido, se le dice a la persona: sin esto mira una
+ * pantalla que dice "pasale tu mail al coordinador" y espera para siempre. Si
+ * fue un error, lo pide de nuevo desde acá y reaparece en la lista (0032).
+ * Un error de red no bloquea nada: la pantalla queda como estaba.
+ */
+async function mostrarRechazoEnSinClub() {
+  const aviso = $('sin-club-rechazo');
+  const boton = $('btn-sin-club-volver-a-pedir');
+  aviso.hidden = true;
+  boton.hidden = true;
+  let rechazada = false;
+  try {
+    rechazada = await miPedidoDescartado();
+  } catch {
+    return;
+  }
+  if (!rechazada) return;
+  aviso.textContent = 'Coordinación no habilitó esta cuenta. Si fue un error, podés pedir el acceso de nuevo.';
+  aviso.hidden = false;
+  boton.hidden = false;
+}
+
+async function volverAPedir() {
+  const aviso = $('sin-club-rechazo');
+  const boton = $('btn-sin-club-volver-a-pedir');
+  boton.disabled = true;
+  try {
+    await volverAPedirAcceso();
+    aviso.textContent = 'Listo: coordinación lo va a ver de nuevo. Cuando te habiliten, entrá con "reintentar".';
+    boton.hidden = true;
+  } catch (e) {
+    aviso.textContent = esErrorDeRed(e) ? SIN_CONEXION : 'No se pudo pedir de nuevo. Probá otra vez.';
+  } finally {
+    boton.disabled = false;
+  }
+}
+
+/**
+ * La cuenta existe pero no tiene nombre: la primera entrada con Google, o
+ * una cuenta de mail creada sin él. Es un paso único y no se saltea: el
+ * nombre es lo que ven los demás profes y la coordinación.
+ *
+ * Lo que trae Google aparece escrito en el campo, pero no se guarda hasta que
+ * la persona toca Continuar.
+ */
+export function mostrarPedirNombre({ sugerido } = {}) {
+  limpiarErrores();
+  $('nm-nombre').value = sugerido ?? '';
+  mostrarPublico('v-nombre');
+  $('nm-nombre').focus();
+}
+
+/**
+ * Términos y Privacidad sin aceptar en su versión vigente. Como el nombre, va
+ * antes que el club: sin esto no se entra a nada, ni siquiera a "falta el
+ * acceso". El checkbox arranca siempre destildado: aceptar tiene que ser un
+ * gesto de la persona, no algo que quedó marcado de antes.
+ */
+export function mostrarAceptarLegal() {
+  limpiarErrores();
+  $('lg-acepto').checked = false;
+  mostrarPublico('v-legal');
+}
+
+/* ---------- avisos ---------- */
+
+const ERRORES = ['ingresar-error', 'crear-error', 'recuperar-error', 'nueva-clave-error', 'nombre-error', 'legal-error', 'jugador-error'];
+
+function limpiarErrores() {
+  ERRORES.forEach((id) => { $(id).style.display = 'none'; $(id).classList.remove('ok'); });
+}
+
+function avisar(id, mensaje, { ok = false } = {}) {
+  const el = $(id);
+  el.querySelector('.tx').textContent = mensaje;
+  el.classList.toggle('ok', ok);
+  el.style.display = 'flex';
+}
+
+/* ---------- validación de formulario ---------- */
+
+// Deliberadamente laxa: sirve para atajar el dedazo obvio, no para decidir si
+// un mail es válido. Eso lo decide el servidor de correo, no una regex.
+const PARECE_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function problemaDeClave(clave, repetida) {
+  if (clave.length < CLAVE_MINIMA) return `La contraseña tiene que tener al menos ${CLAVE_MINIMA} caracteres.`;
+  if (clave !== repetida) return 'Las dos contraseñas no coinciden.';
+  return null;
+}
+
+/* ---------- mensajes de error ---------- */
+
+/**
+ * Un error de ingreso NUNCA distingue entre "ese mail no existe" y "la
+ * contraseña está mal": esa diferencia deja averiguar quién tiene cuenta.
+ * Por eso el mensaje es el mismo para cualquier fallo de credenciales, y sólo
+ * se separa el caso de red, que no dice nada de ninguna cuenta.
+ */
+function mensajeDeIngreso(e) {
+  if (esErrorDeRed(e)) return SIN_CONEXION;
+  if (/email not confirmed/i.test(e?.message ?? '')) {
+    return 'Todavía no confirmaste tu mail. Buscá el mail de confirmación y abrí el link.';
+  }
+  return 'El mail o la contraseña no coinciden.';
+}
+
+/** El proveedor de Google se habilita en el dashboard, no desde el código. */
+function mensajeDeGoogle(e) {
+  if (esErrorDeRed(e)) return SIN_CONEXION;
+  if (/provider is not enabled|unsupported provider|validation_failed/i.test(e?.message ?? '')) {
+    return 'El ingreso con Google todavía no está habilitado en este proyecto. Entrá con mail y contraseña.';
+  }
+  return 'No se pudo abrir el ingreso con Google. Entrá con mail y contraseña.';
+}
+
+/* ---------- acciones ---------- */
+
+async function conBoton(boton, textoMientras, fn) {
+  if (boton.disabled) return;
+  const original = boton.textContent;
+  boton.disabled = true;
+  boton.textContent = textoMientras;
+  try {
+    await fn();
+  } finally {
+    boton.disabled = false;
+    boton.textContent = original;
+  }
+}
+
+async function ingresar() {
+  const email = $('in-email').value.trim();
+  const clave = $('in-pass').value;
+  limpiarErrores();
+  if (!email || !clave) return avisar('ingresar-error', 'Completá mail y contraseña.');
+  await conBoton($('btn-ingresar'), 'Ingresando...', async () => {
+    try {
+      await iniciarSesion(email, clave);
+      await alEntrar();
+    } catch (e) {
+      avisar('ingresar-error', mensajeDeIngreso(e));
+    }
+  });
+}
+
+async function crear() {
+  const nombre = normalizarNombre($('cr-nombre').value);
+  const email = $('cr-email').value.trim();
+  const clave = $('cr-pass').value;
+  const repetida = $('cr-pass2').value;
+  limpiarErrores();
+  if (!nombre) return avisar('crear-error', 'Escribí tu nombre y apellido.');
+  if (!PARECE_EMAIL.test(email)) return avisar('crear-error', 'Escribí un mail válido.');
+  const problema = problemaDeClave(clave, repetida);
+  if (problema) return avisar('crear-error', problema);
+
+  await conBoton($('btn-crear'), 'Creando...', async () => {
+    try {
+      const { sesion } = await crearCuenta(email, clave, nombre, { esJugador: modoDeAlta === 'jugador' });
+      if (sesion) {
+        // El proyecto no exige confirmar el mail: ya está adentro.
+        await alEntrar();
+        return;
+      }
+      // El proyecto sí exige confirmar. Sin esto el usuario se queda mirando
+      // un formulario que "no hizo nada", que es el peor final posible.
+      avisar('crear-error', `Te mandamos un mail a ${email}. Abrilo para confirmar la cuenta y después ingresá${modoDeAlta === 'jugador' ? ': te va a llevar a pedir acceso a tu categoría' : ''}.`, { ok: true });
+    } catch (e) {
+      avisar('crear-error', mensajeDeCreacion(e));
+    }
+  });
+}
+
+/**
+ * Tampoco confirma ni desmiente que un mail ya tenga cuenta: el mensaje sirve
+ * igual en los dos casos, que es la forma estándar de no filtrar el padrón.
+ */
+function mensajeDeCreacion(e) {
+  if (esErrorDeRed(e)) return SIN_CONEXION;
+  const msg = e?.message ?? '';
+  if (/already registered|already exists|user_already_exists/i.test(msg)) {
+    return 'Si ese mail no tenía cuenta, ya te llegó el mail para confirmarla. Si ya tenía, ingresá con tu contraseña.';
+  }
+  if (/password/i.test(msg)) return 'Esa contraseña no cumple los requisitos mínimos. Probá con una más larga.';
+  return 'No se pudo crear la cuenta. Intentá de nuevo en un rato.';
+}
+
+async function recuperar() {
+  const email = $('rec-email').value.trim();
+  limpiarErrores();
+  if (!PARECE_EMAIL.test(email)) return avisar('recuperar-error', 'Escribí un mail válido.');
+  await conBoton($('btn-recuperar'), 'Mandando...', async () => {
+    try {
+      await enviarRecuperacionDeClave(email);
+    } catch (e) {
+      if (esErrorDeRed(e)) {
+        avisar('recuperar-error', SIN_CONEXION);
+        return;
+      }
+      // Cualquier otro fallo se trata como éxito a propósito: contestar
+      // distinto según si el mail existe es, otra vez, filtrar el padrón.
+    }
+    avisar('recuperar-error', `Si ese mail tiene una cuenta, ya le llegó el link para cambiar la contraseña.`, { ok: true });
+  });
+}
+
+async function guardarClaveNueva() {
+  const clave = $('nv-pass').value;
+  const repetida = $('nv-pass2').value;
+  limpiarErrores();
+  const problema = problemaDeClave(clave, repetida);
+  if (problema) return avisar('nueva-clave-error', problema);
+  await conBoton($('btn-nueva-clave'), 'Guardando...', async () => {
+    try {
+      await cambiarClave(clave);
+      await alEntrar();
+    } catch (e) {
+      avisar('nueva-clave-error', textoDeError(e, 'No se pudo guardar la contraseña. Puede que el link haya vencido: pedí uno nuevo.'));
+    }
+  });
+}
+
+async function guardarNombre() {
+  const nombre = normalizarNombre($('nm-nombre').value);
+  limpiarErrores();
+  if (!nombre) return avisar('nombre-error', 'Escribí tu nombre y apellido.');
+  await conBoton($('btn-nombre-guardar'), 'Guardando...', async () => {
+    try {
+      await guardarMiNombre(nombre);
+      await alEntrar();
+    } catch (e) {
+      avisar('nombre-error', textoDeError(e, 'No se pudo guardar tu nombre. Intentá de nuevo.'));
+    }
+  });
+}
+
+async function aceptarLegalYSeguir() {
+  limpiarErrores();
+  if (!$('lg-acepto').checked) return avisar('legal-error', 'Tildá la casilla para seguir.');
+  await conBoton($('btn-legal-aceptar'), 'Guardando...', async () => {
+    try {
+      await aceptarLegal(VERSION_LEGAL);
+      await alEntrar();
+    } catch (e) {
+      avisar('legal-error', textoDeError(e, 'No se pudo guardar. Intentá de nuevo.'));
+    }
+  });
+}
+
+// Google no lleva nuestra user_metadata, así que "Soy jugador" se pierde en el
+// ida y vuelta. Se anota en la pestaña antes de salir (sessionStorage
+// sobrevive a la redirección en la misma pestaña) y main.js lo lee al volver.
+// Como quiere_ser_jugador, sólo decide a qué formulario llevarla: no autoriza.
+const CLAVE_JUGADOR_POR_GOOGLE = 'alta.jugador-por-google';
+
+function anotarJugadorPorGoogle(esJugador) {
+  try {
+    if (esJugador) sessionStorage.setItem(CLAVE_JUGADOR_POR_GOOGLE, '1');
+    else sessionStorage.removeItem(CLAVE_JUGADOR_POR_GOOGLE);
+  } catch {
+    // Sin storage, el jugador cae en "falta el acceso", que tiene su botón.
+  }
+}
+
+/** Si eligió "Soy jugador" antes de ir a Google. Se lee una sola vez. */
+export function tomarJugadorPorGoogle() {
+  try {
+    const eligio = sessionStorage.getItem(CLAVE_JUGADOR_POR_GOOGLE) === '1';
+    sessionStorage.removeItem(CLAVE_JUGADOR_POR_GOOGLE);
+    return eligio;
+  } catch {
+    return false;
+  }
+}
+
+async function google(idError) {
+  limpiarErrores();
+  anotarJugadorPorGoogle(idError === 'crear-error' && modoDeAlta === 'jugador');
+  try {
+    // Si sale bien esto navega a Google y la página se descarta.
+    await entrarConGoogle();
+  } catch (e) {
+    avisar(idError, mensajeDeGoogle(e));
+  }
+}
+
+async function salirDeLaCuenta() {
+  try {
+    await cerrarSesion();
+  } catch {
+    // Da igual: el objetivo es dejar de estar adentro en este dispositivo.
+  }
+  mostrarLanding();
+}
+
+function mostrarAvisoSesionCerrada() {
+  $('aviso-sesion').classList.add('on');
+}
+
+function ocultarAvisoSesionCerrada() {
+  $('aviso-sesion').classList.remove('on');
+}
+
+/* ---------- cableado ---------- */
+
+function alApretarEnter(idCampo, fn) {
+  $(idCampo).addEventListener('keydown', (e) => { if (e.key === 'Enter') fn(); });
+}
+
+export function iniciarPublico({ onEntrar, onReintentarClub }) {
+  alEntrar = onEntrar;
+  iniciarLandingAnimada();
+
+  $('btn-ir-crear').addEventListener('click', () => mostrarPublico('v-quien'));
+  $('btn-ir-crear-2').addEventListener('click', () => mostrarPublico('v-quien'));
+  $('btn-alta-jugador').addEventListener('click', () => abrirAlta('jugador'));
+  $('btn-alta-profe').addEventListener('click', () => abrirAlta('profe'));
+  $('btn-quien-volver').addEventListener('click', mostrarLanding);
+  $('btn-crear-volver').addEventListener('click', () => { limpiarErrores(); mostrarPublico('v-quien'); });
+  $('btn-ir-ingresar').addEventListener('click', () => { limpiarErrores(); mostrarPublico('v-ingresar'); });
+  $('btn-ir-ingresar-2').addEventListener('click', () => { limpiarErrores(); mostrarPublico('v-ingresar'); });
+  $('btn-ir-ingresar-3').addEventListener('click', () => { limpiarErrores(); mostrarPublico('v-ingresar'); });
+  $('btn-ir-ingresar-4').addEventListener('click', () => { limpiarErrores(); mostrarPublico('v-ingresar'); });
+  $('btn-ir-recuperar').addEventListener('click', () => { limpiarErrores(); mostrarPublico('v-recuperar'); });
+  $('btn-volver-landing').addEventListener('click', mostrarLanding);
+
+  $('btn-ingresar').addEventListener('click', ingresar);
+  $('btn-crear').addEventListener('click', crear);
+  $('btn-recuperar').addEventListener('click', recuperar);
+  $('btn-nueva-clave').addEventListener('click', guardarClaveNueva);
+  $('btn-google-ingresar').addEventListener('click', () => google('ingresar-error'));
+  $('btn-google-crear').addEventListener('click', () => google('crear-error'));
+
+  alApretarEnter('in-pass', ingresar);
+  alApretarEnter('cr-pass2', crear);
+  alApretarEnter('rec-email', recuperar);
+  alApretarEnter('nv-pass2', guardarClaveNueva);
+
+  $('btn-nombre-guardar').addEventListener('click', guardarNombre);
+  alApretarEnter('nm-nombre', guardarNombre);
+  $('btn-nombre-salir').addEventListener('click', salirDeLaCuenta);
+
+  $('btn-legal-aceptar').addEventListener('click', aceptarLegalYSeguir);
+  $('btn-legal-salir').addEventListener('click', salirDeLaCuenta);
+
+  $('btn-sin-club-reintentar').addEventListener('click', () => onReintentarClub());
+  $('btn-sin-club-jugador').addEventListener('click', () => abrirSolicitudJugador());
+  $('btn-sin-club-volver-a-pedir').addEventListener('click', volverAPedir);
+  iniciarSolicitudJugador({
+    mostrar: mostrarPublico,
+    onReintentar: () => onReintentarClub(),
+    onVolver: () => { mostrarPublico('v-sin-club'); mostrarSolicitudEnSinClub(); mostrarRechazoEnSinClub(); },
+  });
+  $('btn-sin-club-salir').addEventListener('click', salirDeLaCuenta);
+
+  $('btn-aviso-sesion-entrar').addEventListener('click', () => {
+    ocultarAvisoSesionCerrada();
+    mostrarLanding();
+  });
+
+  // Supabase avisa con PASSWORD_RECOVERY cuando el usuario vuelve desde el
+  // link del mail. main.js ya mira el hash antes de arrancar, así que esto es
+  // el respaldo para el caso en que el evento llegue después.
+  //
+  // Un SIGNED_OUT que no vino de cerrarSesion() (salir() en main.js o
+  // salirDeLaCuenta() acá) es la sesión cayéndose sola: token vencido o
+  // cerrada desde otro dispositivo. Ahí la persona no tocó nada, así que "sin
+  // permiso" sería el mensaje equivocado en cualquier pantalla que pise un
+  // 42501 después.
+  alCambiarAuth((evento) => {
+    if (evento === 'PASSWORD_RECOVERY') mostrarPublico('v-nueva-clave');
+    if (evento === 'SIGNED_OUT' && !fueSalidaVoluntaria()) {
+      marcarSesionCerrada();
+      mostrarAvisoSesionCerrada();
+    }
+    if (evento === 'SIGNED_IN') {
+      desmarcarSesionCerrada();
+      ocultarAvisoSesionCerrada();
+    }
+  });
+}

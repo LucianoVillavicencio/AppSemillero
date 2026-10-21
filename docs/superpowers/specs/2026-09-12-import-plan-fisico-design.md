@@ -1,0 +1,342 @@
+# Importación del plan físico (fuerza)
+
+**Fecha:** 2026-09-12
+**Estado:** para aprobar
+**Etapa:** 6
+**Depende de:** `src/parser/parserFisico.js` (commit a531a04), que no se toca.
+
+---
+
+## 1. Qué resuelve
+
+El profe de físico arma el plan de fuerza en un `.xlsx` con dos rutinas por
+semana. Hoy ese archivo vive en un WhatsApp y no está en ningún lado más. Esta
+etapa lo persiste: el profe elige la categoría, sube el archivo, ve lo que el
+parser entendió, resuelve a mano los nombres de ejercicio que no matchearon, y
+confirma. O entra todo, o no entra nada.
+
+**Lo que esta etapa NO hace, a propósito:** no muestra el plan guardado en
+ninguna pantalla. Ni al jugador (no tiene cuenta) ni al profe. Los criterios de
+aceptación piden verlo con una consulta directa a la base. Es una etapa de
+escritura; la lectura es otra.
+
+---
+
+## 2. El matcheo tiene dos pasos, no uno
+
+Esto no estaba en el prompt y cambia el diseño, así que va primero.
+
+**El parser no matchea contra la base: matchea contra el archivo.** La
+`referencia` que devuelve apunta a una fila de la hoja "Ejercicios" del propio
+`.xlsx`, que no tiene ids. Entonces importar es:
+
+1. **Reconciliar la biblioteca del archivo contra la del club.** Las 39 filas de
+   la hoja "Ejercicios" se buscan en `ejercicio_fuerza` por nombre normalizado.
+   Las que ya están se reusan; las que no, se crean. Es automático y no adivina
+   nada: la coincidencia es exacta sobre el nombre normalizado, el mismo
+   criterio del parser.
+2. **Buscar en la biblioteca del club lo que la hoja no trae.** Un ejercicio de
+   sesión que el parser no pudo referenciar se busca también en
+   `ejercicio_fuerza`, con el mismo criterio: coincidencia exacta sobre el
+   nombre normalizado. Si está, se resuelve solo.
+3. **Lo que queda afuera es un ejercicio sin video, y está bien.** Lo que no
+   coincide exacto en ninguna de las dos fuentes (57 de 135 en el archivo real,
+   43 nombres distintos, la primera vez que se importa) se guarda igual, sin
+   video. Si el profe quiere, le elige un video de la biblioteca o carga el
+   link; es opcional (sección 7).
+
+**La hoja "Ejercicios" es un anexo de videos, no un catálogo** (corregido el
+2026-09-15): el profe le puso link a los movimientos que le parecieron difíciles
+de entender o de ejecutar bien. Un ejercicio que no aparece ahí no es un caso
+sin resolver: es un ejercicio común que no necesitaba video. La primera versión
+de la pantalla lo trataba como una deuda —un contador, "pendiente", un paso
+intermedio antes de guardar— y convertía un import de segundos en media hora de
+trabajo a mano. El matcheo no cambia y sigue siendo exacto: "Press Plano",
+"Press Plano (Manc)" y "Press Plano Alternado" pueden ser tres movimientos
+distintos, y pegarle el video equivocado a un ejercicio es peor que no tener
+video.
+
+El orden importa: sin el paso 1, el profe tendría que dar de alta a mano
+ejercicios que el archivo ya traía con nombre y link.
+
+**Por qué las dos fuentes se tratan igual** (agregado el 2026-09-14): la
+primera versión de esta spec resolvía sola la coincidencia exacta contra la
+hoja del archivo pero mandaba a mano la misma coincidencia exacta contra la
+biblioteca del club. No hay razón para esa diferencia. El criterio es uno —
+exacto sobre el nombre normalizado, sin parecidos — y se aplica parejo: que un
+nombre falte en la hoja del archivo no lo vuelve dudoso en la base. No se baja
+el estándar; se deja de pedirle al profe que confirme a mano algo que ya es
+seguro. Tampoco abre ambigüedad: la `clave` es única por club, así que en la
+base una coincidencia exacta tiene un solo candidato. Un nombre repetido en la
+hoja del archivo, que el parser deja sin referencia por ambiguo, se resuelve
+igual si coincide exacto en el club. Lo que se nota en la práctica: desde el
+segundo import, un nombre que ya está en el club con esa misma escritura
+normalizada toma su video solo. Uno al que el profe le eligió el video de un
+ejercicio con otro nombre vuelve a aparecer sin video: la elección no se guarda
+como alias, y eso no cambia con esta regla.
+
+---
+
+## 3. Esquema — `0020_plan_fisico.sql`
+
+Cuatro tablas. Todas llevan `club_id` y FK compuestas contra `(club_id, id)`,
+que es la decisión de 0001 que no se reabre.
+
+### `ejercicio_fuerza` — la biblioteca
+
+**Tabla nueva y no la `ejercicio` de la Etapa 5**, que es otra cosa: la
+biblioteca de ejercicios de básquet que cargan los profes a mano, con `tema` (de
+`src/data/temas.js`), material, jugadores, autoría y notas. Tres razones:
+
+- El eje es distinto: acá manda `bloque` (POTENCIA, FUERZA, AUXILIAR, CORE,
+  AUX/CORE), allá `tema`.
+- La RLS de `ejercicio` deja editar sólo a quien creó la fila. Una entrada que
+  nace de importar un archivo quedaría atada a quien subió ese mes.
+- RECURSOS lista `ejercicio` con sus notas y su autoría. Inyectarle 39
+  ejercicios de gimnasio le tapa la función a la pantalla.
+
+| Columna | Por qué |
+|---|---|
+| `clave` | El nombre normalizado (`clavearNombre`). Es lo que hace que el import del mes siguiente reconcilie solo. |
+| `nombre` | Como lo escribió el profe, sin tocar. |
+| `bloque`, `link` | Nullable: un alta a mano puede no tener video. |
+| `unique (club_id, clave)` | Dos entradas con el mismo nombre normalizado son la misma. |
+
+Sin `check` sobre `bloque`: la lista de bloques la manda el archivo del club, y
+un `check` la ataría a una migración cada vez que el profe invente uno (mismo
+criterio que `tema` en 0015).
+
+### `plan_fisico` — un archivo importado
+
+`plantel_id`, `nombre_archivo`, `hash_archivo`, `advertencias jsonb`.
+
+- **`unique (plantel_id, hash_archivo)`, no por club.** Si U15 y U17 hacen la
+  misma rutina, el profe la sube para las dos. Reimportar el mismo archivo en la
+  **misma** categoría falla con mensaje claro, que es lo que hay que evitar.
+- **El hash no va a `importacion`.** Hoy una fila de `importacion` sin `partido`
+  significa "algo se rompió a mitad de camino" — justo el estado que la RPC de
+  0005 vino a cerrar. Si el plan físico reusa esa tabla, ese diagnóstico se
+  pierde.
+- Sin columna de mes ni de rango de fechas: las fechas están en las sesiones.
+
+### `sesion_fisico` — un día de entrenamiento
+
+`plan_id`, `fecha`.
+
+- **Sin `dia_semana`:** se deriva de la fecha. Guardarlo es guardar dos veces el
+  mismo dato y dejar que se contradigan.
+- **Sin `unique (plan_id, fecha)`:** si un archivo repitiera una fecha, la
+  constraint abortaría el import entero con un mensaje opaco. El archivo se
+  guarda como es; el parser ya avisa de lo que no cierra.
+
+### `ejercicio_asignado` — una línea de la rutina
+
+`sesion_id`, `ejercicio_fuerza_id` (nullable), `orden`, `bloque`,
+`nombre_original`, `series`, `reps`, `carga_sugerida`, `pausa`, `notas`,
+`escalon_kg`.
+
+- **`ejercicio_fuerza_id` nullable es el estado "pendiente".** La FK compuesta
+  `(club_id, ejercicio_fuerza_id)` usa MATCH SIMPLE (el default): con la columna
+  en NULL no se chequea nada, y con valor obliga a que el club coincida. Es
+  exactamente el comportamiento que hace falta.
+- **`nombre_original`** es el texto exacto del archivo, igual que
+  `estadistica_jugador_partido.nombre_crudo`: es lo que permite auditar contra
+  el original y lo único que queda si el nombre nunca se resuelve.
+- **`reps`, `carga_sugerida` y `pausa` son `text`**, porque el archivo dice
+  `5xL`, `45''`, `Fallo-2`, `PC`, `Barra + Disc`. Convertirlos a número sería
+  fabricar precisión que el dato no tiene.
+- **`escalon_kg` queda siempre NULL y la RPC no lo escribe** ni aunque venga en
+  el payload. Dos avisos: (1) es el manejo de peso, que depende de cuentas de
+  jugador, hoy bloqueadas; (2) esta columna guarda **un** valor por línea de
+  rutina, o sea para todo el grupo. El escalón individual del que hablamos es
+  por jugador, y cuando se destrabe va a necesitar su propia tabla. Esta columna
+  no es esa.
+
+---
+
+## 4. RLS
+
+Mismo patrón que 0016, sin excepciones nuevas.
+
+| Tabla | Camino al plantel | Lectura | Escritura |
+|---|---|---|---|
+| `plan_fisico` | `plantel_id` directo | `puede_ver_plantel` | `puede_escribir_plantel` |
+| `sesion_fisico` | vía `plan_id` | la del plan | la del plan |
+| `ejercicio_asignado` | vía `sesion_id` → `plan_id` | la del plan | la del plan |
+| `ejercicio_fuerza` | — (nivel club) | cualquier miembro del club | sólo `es_entrenador` (desde 0017; la columna `rol` ya no existe) |
+
+La biblioteca queda a nivel club por la misma razón que `ejercicio` en 0015: el
+beneficio de cargarla es que quede para todos. El coordinador la lee y no la
+escribe, que es la regla de 0016.
+
+`ejercicio_asignado` lleva policy de `update` aunque esta etapa no actualice
+nada: es lo que va a necesitar la pantalla que resuelva pendientes más adelante
+(ver sección 8). `ejercicio_fuerza` **no** lleva update ni delete — todavía nada
+los usa, y se agregan cuando haya quién.
+
+---
+
+## 5. La RPC — `0021_rpc_importar_plan_fisico.sql`
+
+`importar_plan_fisico(payload jsonb)`, `security invoker`, mismo molde que
+`importar_partido`: una llamada RPC vía PostgREST es una transacción, y
+cualquier excepción aborta todo.
+
+Orden adentro: **primero el plan**, después las entradas nuevas de biblioteca
+(las referencian los ejercicios), después las sesiones y sus ejercicios. Las
+claves nuevas se resuelven con una tabla temporal `on commit drop`, igual que
+`jugadores_resueltos` en 0005.
+
+**Por qué el plan va primero, y no se revierte** (corregido el 2026-09-14, al
+verificar la RPC contra la base local): con la biblioteca primero, reimportar el
+mismo archivo choca antes con una clave de ejercicio ya cargada y devuelve
+`EJERCICIO_DUPLICADO` — un mensaje que habla de un ejercicio cuando lo que pasó
+es que el archivo ya estaba importado. El plan no depende de la biblioteca (sólo
+`ejercicio_asignado` la necesita, y va después), así que invertir el orden no
+rompe nada y hace que la colisión que salta primero sea la que describe el
+problema real.
+
+```
+{
+  clubId, plantelId, nombreArchivo, hashArchivo, advertencias: [...],
+  ejerciciosNuevos: [ { clave, nombre, bloque, link } ],
+  sesiones: [ {
+    fecha,
+    ejercicios: [ {
+      orden, bloque, nombreOriginal, series, reps, cargaSugerida, pausa, notas,
+      ejercicioFuerzaId,   // id existente, o null
+      claveNueva           // clave de ejerciciosNuevos, o null
+    } ]
+  } ]
+}
+```
+
+Un ejercicio con los dos en null es un pendiente, y es válido.
+
+| Error | Cuándo |
+|---|---|
+| `PLAN_DUPLICADO` | Ya se importó ese archivo en esa categoría. |
+| `EJERCICIO_DUPLICADO` | Un alta nueva choca con una `clave` que ya está en la biblioteca. |
+| `PLAN_VACIO` | El payload no trae ninguna sesión: un import vacío es un bug, no un estado. |
+
+Devuelve `{ planId, sesiones, ejercicios, pendientes }` para que la pantalla de
+resultado no tenga que recontar.
+
+---
+
+## 6. La función pura — `src/data/prepararPayloadPlanFisico.js`
+
+Sin red, sin cliente de base, sin generar ids; mismo molde que
+`prepararPayloadImportacion`. Firma:
+
+```
+prepararPayloadPlanFisico(resultadoParser, bibliotecaDelClub, decisiones, contexto)
+  → { error, payload }
+```
+
+- Reconcilia la biblioteca del archivo contra `bibliotecaDelClub` por `clave`.
+- Resuelve solo cada ejercicio de sesión cuyo nombre normalizado coincide
+  exacto en la hoja del archivo o, si no, en `bibliotecaDelClub` (sección 2).
+- Aplica las decisiones del profe a lo que queda, que son **por nombre normalizado, no por
+  ocurrencia**: resolver "Press Plano" una vez resuelve las 6 apariciones.
+- Una decisión puede ser `existente` (id de la biblioteca), `nueva` (bloque +
+  nombre + link) o ausente, que significa pendiente.
+- Normaliza los nombres de las altas nuevas con `clavearNombre`, importada del
+  parser: una sola fuente para el criterio, igual que hace `parserFisico`.
+
+Devuelve `error` (nunca lanza) si: el parser trajo errores; una decisión apunta
+a un id que no está en la biblioteca; un alta nueva choca con una clave
+existente (hay que elegir la existente, no crear un duplicado); o falta
+`clubId`, `plantelId` o `hashArchivo`.
+
+---
+
+## 7. La pantalla
+
+Una sola pantalla nueva, `p-plan-fisico` (`src/ui/pantallas/planFisico.js`), con
+pasos que se renderizan en el mismo contenedor y un objeto de estado — igual que
+`confirmacionImport.js`.
+
+1. **Archivo y categoría.** Punto de entrada en la pestaña FÍSICO (entre
+   MEDIR y RECURSOS), con su propio `<input type="file">`. Al principio estuvo
+   en DATOS, al lado de "Cargar partido"; se movió el 2026-09-15 porque un
+   partido es un evento cerrado que se mira y el plan físico es trabajo
+   continuo. Sus "Volver" usan `retornoPlanFisico.js` y terminan en FÍSICO; el
+   import de partido sigue con `retornoImport.js` y vuelve a DATOS. La categoría arranca en la del
+   chip del chrome y se muestra con todas las letras ("se guarda en U17M"), con
+   opción de cambiarla: importar escribe, y escribir en la categoría equivocada
+   no se deshace desde la app. **La opción de cambiarla es el mismo chip del
+   chrome**, no un segundo selector en la pantalla (aclarado el 2026-09-15, al
+   verla a 375px): con los dos visibles se podían contradecir — el chip marcaba
+   una categoría y el import guardaba en otra. El destino se repite con todas
+   las letras al lado del chip y en el botón ("Guardar en U17M"), y cambiar de
+   chip en medio del import no pierde los videos elegidos.
+2. **Resumen, y se guarda desde acá.** Cuántas sesiones y de qué fechas,
+   cuántos ejercicios, cuántos con video y cuántos sin video, cuántos videos
+   nuevos entran a la biblioteca, y las advertencias del parser tal cual las
+   devuelve. El botón principal es "Guardar en U17M": no hay ningún paso
+   obligatorio en el medio.
+3. **Agregar videos, opcional** (rehecho el 2026-09-15, ver sección 2). Se
+   llega desde un botón secundario dentro del resumen, "Agregar videos". Una
+   fila por nombre sin video — lo que queda después de la coincidencia
+   automática de la sección 2 (`nombresPorResolver`), no `sinMatchear` del
+   parser, que sólo sabe del archivo y listaría nombres que el club ya tiene.
+   Cada fila dice "sin video" o "video de X" y ofrece "Elegir video" y "Cargar
+   link"; "Quitar" aparece sólo si hay un video que sacar. Sin video es el
+   estado normal: no es un botón ni se cuenta como deuda, y el contador sólo
+   informa ("51 ejercicios sin video"). En toda la pantalla no se dice
+   "pendiente", "resolver" ni "conflicto", y un test lo fija.
+   - **Elegir un video** lista sólo entradas con link: una entrada sin link no
+     es un video. El filtro es de esa lista y de nada más.
+   - **Cargar link** exige el link. La detección de nombre repetido mira la
+     biblioteca entera, con o sin link; si el nombre ya está sin link, el aviso
+     lo dice, porque desde acá no se le puede agregar uno.
+4. **Resultado.** "Se guardaron N sesiones y M ejercicios en U17M, K con
+   video." No se nombra lo que no tiene video.
+
+Reusa `.jug-sugerencia`, `.campo`, `.al`, `.pie-fijo` y `.btn`. CSS
+nuevo sólo si algo no existe, y cualquier breakpoint va en `layout.css` (regla
+del proyecto). Todo lo táctil ya llega a 44px porque `--tap` es el `min-height`
+de `.btn`, `.opt` y `.campo`; nada depende de `hover`.
+
+---
+
+## 8. Guardar sin video
+
+Un ejercicio sin video se guarda completo (nombre, series, reps, carga, pausa,
+notas); lo único que no tiene es `ejercicio_fuerza_id`, y por lo tanto link. Es
+el caso normal, no una deuda (sección 2). Lo que sí conviene saber:
+
+- **Ponerle video a un ejercicio ya guardado no tiene pantalla todavía.** Si
+  hace falta, hoy es por SQL; esta etapa no construye esa pantalla.
+- **Y no se hace reimportando:** el mismo archivo en la misma categoría choca
+  con el hash.
+- **Si el club quiere más videos, lo más barato es el archivo.** Un nombre que
+  se agrega con su link a la hoja "Ejercicios" del `.xlsx` entra con video en el
+  import siguiente, sin tocar la app.
+
+---
+
+## 9. Fuera de alcance
+
+Nada para que el jugador vea su rutina o marque completado. Ninguna pantalla
+para editar `escalon_kg`. Ningún matcheo automático por similitud (Levenshtein
+existe en `mapearImportacion.js` para nombres de jugador y **no** se usa acá: en
+ejercicios, "Press Plano" y "Press Banca" están a poca distancia y son cosas
+distintas). Las hojas "Intermitente". Tocar `parserFisico.js`. Leer el plan
+guardado desde la app. El layout de PLANTEL y DATOS más allá del botón nuevo.
+
+---
+
+## 10. Cómo se verifica
+
+- Migración y RPC aplicadas en el Docker local, nunca contra producción.
+- `tests/prepararPayloadPlanFisico.test.js`: la función pura, sin base.
+- `tests/verificarImportarPlanFisico.js`: contra el Docker local, con un payload
+  roto a propósito (un `ejercicioFuerzaId` inexistente) para confirmar que no
+  queda ninguna fila parcial, y una segunda importación del mismo archivo para
+  confirmar `PLAN_DUPLICADO`.
+- `tests/rollbackPlanFisico.sql`: deshace 0020 y 0021 para poder reintentar en
+  local.
+- Import del `Físico.xlsx` real de punta a punta, contando las filas en la base.
+- La pantalla mirada a 375px con el banco de pruebas.
