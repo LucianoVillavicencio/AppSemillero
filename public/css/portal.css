@@ -140,3 +140,31 @@
 .portal-pie-sede b{color:var(--sobre-oscuro);font-weight:600}
 .portal-pie-sede a{color:var(--sobre-oscuro)}
 .portal-pie .pie-legal{margin:0}
+
+/* ---- inicio: hero a pantalla completa con video (spec 2026-10-21-portal-home-inmersiva) ----
+   .con-hero (en #publico) y .con-fondo (en #heroe) están escritas en el HTML
+   para que no haya salto de maquetado; portal.js las saca si PORTAL.heroVideo
+   no es válido y el hero queda como era (rojo y negro). El encabezado flota
+   sobre el hero. */
+.con-hero .portal{max-width:none}
+.con-hero .portal-barra{position:absolute;top:0;left:0;right:0}
+.con-hero .portal-nav a{color:var(--sobre-oscuro)}
+.con-hero .portal-nav a[aria-current="page"]{border-bottom-color:var(--primario)}
+.portal-heroe.con-fondo{
+  min-height:100svh;display:flex;flex-direction:column;justify-content:flex-end;
+  padding-top:calc(var(--tap) * 2 + var(--sp-6));background:var(--pub-fondo)
+}
+.portal-heroe.con-fondo::after{display:none}
+.portal-heroe-cont{position:relative;width:100%;max-width:64rem;margin-inline:auto}
+.portal-heroe-fondo{position:absolute;inset:0;z-index:-1;overflow:hidden}
+.portal-heroe-poster,.portal-heroe-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+/* El video entra con un fundido sobre el poster cuando ya está reproduciendo. */
+.portal-heroe-video{opacity:0;transition:opacity var(--dur-3) var(--ease-salida)}
+.portal-heroe-fondo.reproduciendo .portal-heroe-video{opacity:1}
+/* El velo: oscurece parejo y se cierra arriba (encabezado) y abajo (texto y botones), para que el blanco tenga contraste sobre cualquier foto. */
+.portal-heroe-velo{position:absolute;inset:0;background:linear-gradient(180deg,var(--pub-fondo) 0,transparent 30%,transparent 38%,var(--pub-fondo) 96%)}
+.portal-heroe-velo::after{content:"";position:absolute;inset:0;background:var(--pub-fondo);opacity:.25}
+.con-fondo .portal-heroe-ey{display:flex;align-items:center;gap:var(--sp-2)}
+.con-fondo .portal-heroe-ey::before{content:"";width:.5rem;height:.5rem;background:var(--primario);flex:0 0 auto}
+.con-fondo h1{font-size:clamp(2.5rem,2rem + 4vw,5rem);line-height:.9;max-width:20rem}
+.con-fondo .portal-heroe-bajada{max-width:22rem}

@@ -14,6 +14,8 @@ import {
 import { destinoDeAuth } from '../data/entradaAuth.js';
 import { iniciarMarco, esconderBarraMientrasSeVea } from './portalMarco.js';
 import { iniciarUltimasNoticias } from './portalNoticias.js';
+import { heroVideoValido } from '../data/heroVideo.js';
+import { htmlFondoHero, iniciarVideoHero } from './portalHeroVideo.js';
 
 /*
  * Portal "Básquet Newell's": la página pública que se reparte a las familias
@@ -594,6 +596,19 @@ function pintarFormularios({ inscripcion = null, comprobante = null, consultas =
   $('portal-colaborar').innerHTML = htmlColaborar(colaboradores);
 }
 
+/** Con un video válido, el hero lo muestra; sin uno, vuelve al rojo y negro (el HTML arranca con las clases puestas para evitar el salto). */
+function iniciarFondoDelHero() {
+  const video = heroVideoValido(PORTAL.heroVideo);
+  if (!video) {
+    $('publico').classList.remove('con-hero');
+    $('heroe').classList.remove('con-fondo');
+    return;
+  }
+  const fondo = $('portal-heroe-fondo');
+  fondo.innerHTML = htmlFondoHero(video);
+  iniciarVideoHero(fondo);
+}
+
 export async function iniciarPortal() {
   // Un link viejo de cuando todo era una página (/#ayuda, /#categorias, /#calendario) va a su página nueva.
   const pagina = paginaDeAncla(window.location.hash);
@@ -624,6 +639,7 @@ export async function iniciarPortal() {
   // persona a /app: acá no se pide nada más (el marco tampoco lee la base).
   if (destinoDeAuth(window.location.search, window.location.hash)) return;
 
+  iniciarFondoDelHero();
   const calendarios = calendariosActivos(PORTAL.agenda);
   if (calendarios.length) {
     const agenda = crearAgenda(calendarios);

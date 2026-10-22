@@ -511,3 +511,13 @@
 @media (max-width:39.99rem) and (max-height:600px){
   .publico .portal-heroe-bajada{display:none}
 }
+
+/* Hero a pantalla completa del inicio (portal.css): sin esquinas ni márgenes, y los
+   que no son el hero siguen en la columna de 64 rem. */
+@media (min-width:40rem){
+  .publico .portal-heroe.con-fondo{margin-inline:0;border-radius:0;padding-inline:var(--sp-6)}
+  .publico .con-fondo h1{max-width:34rem}
+}
+@media (min-width:64rem){
+  .publico.con-hero .portal > :not(.portal-heroe){max-width:64rem;margin-inline:auto}
+}

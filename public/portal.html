@@ -63,7 +63,7 @@
      (formularios_publicos); los eventos, de Google Calendar; el resto, de
      src/data/portal.js. Textos en voseo y sin suponer que saben de computadoras.
      ===================================================================== -->
-<div class="publico portal-d" id="publico">
+<div class="publico portal-d con-hero" id="publico">
   <header class="portal-barra">
     <a class="portal-logo" href="/">
       <img src="/public/escudo.png" alt="" width="36" height="36">
@@ -100,8 +100,10 @@
          el comprobante, con el alias. Tiene que entrar entero en el primer
          pantallazo de un celular. Arranca con todo cerrado hasta que responde
          la base. -->
-    <section class="portal-heroe" id="heroe" aria-label="Básquet formativo de Newell's">
-      <div id="portal-heroe"><div class="portal-heroe-ey">Formativas · Rosario</div><h1>Básquet formativo de Newell&#39;s</h1></div>
+    <section class="portal-heroe con-fondo" id="heroe" aria-label="Básquet formativo de Newell's">
+      <!-- El poster y el video de fondo (src/ui/portalHeroVideo.js). Sin PORTAL.heroVideo, portal.js saca con-fondo y con-hero y queda el hero rojo y negro. -->
+      <div class="portal-heroe-fondo" id="portal-heroe-fondo"></div>
+      <div class="portal-heroe-cont" id="portal-heroe"><div class="portal-heroe-ey">Formativas · Rosario</div><h1>Básquet formativo de Newell&#39;s</h1></div>
     </section>
 
     <!-- Las últimas 3 noticias (src/ui/portalNoticias.js). Sin noticias, o
