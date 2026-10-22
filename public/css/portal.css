@@ -180,6 +180,6 @@
 .portal-destacadas .portal-not:first-child h3{font-size:var(--fs-260)}
 
 /* ---- inicio: "Lo que viene" como el bloque de partido del sitio del club (fecha enorme) y la sede ---- */
-.portal-prox-fecha b{font-size:3.5rem}
-.portal-prox-t{font-size:var(--fs-300)}
+#proximo .portal-prox-fecha b{font-size:var(--fs-cifra)}
+#proximo .portal-prox-t{font-size:var(--fs-300)}
 .portal-sede .portal-contacto-sede{max-width:30rem}

@@ -444,3 +444,13 @@ test('un link viejo también redirige si el inicio ya estaba abierto (cambio de 
   const cuerpo = portal.slice(desde, portal.indexOf('\n}\n', desde));
   assert.match(cuerpo, /addEventListener\('hashchange'/);
 });
+
+test('el "Lo que viene" agrandado del inicio no cambia el de /calendario: sus reglas cuelgan de #proximo y usan tokens', () => {
+  const css = readFileSync('public/css/portal.css', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  const reglas = css.split('}').map((r) => r.trim()).filter((r) => /portal-prox-(fecha b|t)\b/.test(r.split('{')[0]));
+  assert.ok(reglas.length > 0, 'falta el estilo del bloque');
+  for (const r of reglas) {
+    assert.match(r, /^#proximo /, `sin #proximo se cuela en /calendario: ${r}`);
+    assert.doesNotMatch(r, /font-size:\s*[\d.]+rem/, `el tamaño de letra sale de un token: ${r}`);
+  }
+});
