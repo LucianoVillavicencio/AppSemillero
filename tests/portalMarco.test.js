@@ -63,3 +63,8 @@ test('el marco no lee la base si la URL es la vuelta de un login, y sólo pide d
   assert.deepEqual(imports.filter((i) => /repos\/|cliente|supabase/.test(i)), []);
   assert.doesNotMatch(marco, /\bfetch\s*\(/);
 });
+
+test('la barra del inicio se esconde sólo con el hero entero a la vista (letra agrandada: las tarjetas no entran)', () => {
+  assert.match(marco, /threshold: 1/);
+  assert.match(marco, /intersectionRatio >= 1/);
+});

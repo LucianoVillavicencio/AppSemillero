@@ -36,7 +36,15 @@ export function cabeceras(url, reglas) {
 
 /** La ruta en disco, o null si se sale de la carpeta (un %2e%2e decodificado). */
 export function archivoPedido(raiz, url, rewrites) {
-  const archivo = path.join(raiz, decodeURIComponent(destino(url, rewrites)));
+  let ruta;
+  try {
+    ruta = decodeURIComponent(destino(url, rewrites));
+  } catch {
+    return null; // un % mal formado no tiene que tirar el servidor
+  }
+  // Sólo lo que publica Vercel (.vercelignore): nada de .env, .git ni tests/fixtures.
+  if (!/^\/(public|src)\//.test(ruta)) return null;
+  const archivo = path.join(raiz, ruta);
   return archivo.startsWith(raiz + path.sep) ? archivo : null;
 }
 
@@ -55,5 +63,5 @@ if (esPrincipal) {
     } catch {
       res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }).end('No existe');
     }
-  }).listen(puerto, () => console.log(`Portal en http://localhost:${puerto}/`));
+  }).listen(puerto, '127.0.0.1', () => console.log(`Portal en http://localhost:${puerto}/`));
 }

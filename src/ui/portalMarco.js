@@ -95,5 +95,6 @@ export function esconderBarraMientrasSeVea(elemento) {
   barra.classList.add('flotante');
   if (!elemento || typeof IntersectionObserver !== 'function') return;
   barra.classList.add('escondida');
-  new IntersectionObserver(([e]) => barra.classList.toggle('escondida', e.isIntersecting)).observe(elemento);
+  // threshold 1: con letra agrandada las tarjetas no entran enteras, y con un pedazo a la vista la barra seguiría escondida sin que se vea el segundo botón.
+  new IntersectionObserver(([e]) => barra.classList.toggle('escondida', e.intersectionRatio >= 1), { threshold: 1 }).observe(elemento);
 }

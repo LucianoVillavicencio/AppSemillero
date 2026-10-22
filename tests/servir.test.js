@@ -41,3 +41,12 @@ test('archivoPedido: nunca sale de la carpeta del repo', () => {
   const intento = archivoPedido(raiz, '/%2e%2e/%2e%2e/secreto.txt', vercel.rewrites);
   assert.ok(intento === null || intento.startsWith(raiz + path.sep));
 });
+
+test('archivoPedido: sólo /public y /src (lo que publica Vercel); .env, .git, tests y % mal formado, no', () => {
+  const raiz = path.resolve('.');
+  for (const url of ['/.env', '/.git/config', '/tests/fixtures/x.xlsx', '/package.json', '/%E0%A4%A']) {
+    assert.equal(archivoPedido(raiz, url, vercel.rewrites), null, url);
+  }
+  assert.ok(archivoPedido(raiz, '/src/ui/portal.js', vercel.rewrites));
+  assert.ok(archivoPedido(raiz, '/public/css/base.css', vercel.rewrites));
+});

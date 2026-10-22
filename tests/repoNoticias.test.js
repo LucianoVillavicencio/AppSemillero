@@ -27,7 +27,7 @@ test('crea y edita sólo con las columnas que la migración deja escribir', () =
 });
 
 test('las fotos van al bucket de noticias, sin pisar ninguna; borrar la noticia borra sus fotos después de la fila', () => {
-  assert.match(repo, /upload\(ruta, blob, \{ contentType: blob\.type, upsert: false, cacheControl: '31536000' \}\)/);
+  assert.match(repo, /upload\(ruta, blob, \{ contentType: blob\.type, upsert: false, cacheControl: '3600' \}\)/);
   const cuerpo = repo.slice(repo.indexOf('export async function borrarNoticia('));
   assert.ok(cuerpo.indexOf(".from('noticia').delete()") < cuerpo.indexOf('borrarFotosNoticia('), 'primero la fila: si falla, las fotos siguen');
 });

@@ -68,10 +68,10 @@ export async function actualizarNoticia(id, { titulo, resumen, cuerpo, etiqueta,
   return noticiaDesdeFila(data);
 }
 
-/** Sube una foto ya achicada. upsert: false, así nunca pisa otra (el nombre es un uuid nuevo). */
+/** Sube una foto ya achicada. upsert: false, así nunca pisa otra (el nombre es un uuid nuevo). Caché de una hora, no de un año: el bucket es público y una foto que no tenía que estar tiene que dejar de verse pronto. */
 export async function subirFotoNoticia(ruta, blob) {
   const supabase = obtenerCliente();
-  const { error } = await supabase.storage.from(BUCKET_NOTICIAS).upload(ruta, blob, { contentType: blob.type, upsert: false, cacheControl: '31536000' });
+  const { error } = await supabase.storage.from(BUCKET_NOTICIAS).upload(ruta, blob, { contentType: blob.type, upsert: false, cacheControl: '3600' });
   if (error) throw error;
 }
 

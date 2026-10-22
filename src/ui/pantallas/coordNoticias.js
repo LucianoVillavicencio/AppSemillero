@@ -82,7 +82,7 @@ export async function renderNoticias() {
 
   contenedor().innerHTML = html`
     <div class="pad">
-      <div class="p det">Lo que publicás acá lo ve cualquiera que abra la página del básquet, sin entrar con ninguna cuenta: no pongas nombres de chicos ni datos personales, ni en el texto ni en la descripción de las fotos. Las fotos van sólo con la autorización de imagen firmada por las familias.</div>
+      <div class="p det">Lo que publicás acá lo ve cualquiera que abra la página del básquet, sin entrar con ninguna cuenta: no pongas nombres de chicos ni datos personales, ni en el texto ni en la descripción de las fotos. Las fotos van sólo con la autorización de imagen firmada por las familias. Despublicar no saca las fotos: para eso, quitalas o borrá la noticia.</div>
       <p class="p det"><a href="/noticias" target="_blank" rel="noopener">Ver cómo lo ven las familias</a></p>
       ${cuerpo}
     </div>
