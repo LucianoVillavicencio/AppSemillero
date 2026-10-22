@@ -178,3 +178,8 @@
 .portal-cinta span{flex:0 0 auto}
 /* La primera noticia del inicio es la grande; en el celular todas van en una columna y se nota por el título. */
 .portal-destacadas .portal-not:first-child h3{font-size:var(--fs-260)}
+
+/* ---- inicio: "Lo que viene" como el bloque de partido del sitio del club (fecha enorme) y la sede ---- */
+.portal-prox-fecha b{font-size:3.5rem}
+.portal-prox-t{font-size:var(--fs-300)}
+.portal-sede .portal-contacto-sede{max-width:30rem}

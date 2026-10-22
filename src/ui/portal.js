@@ -627,6 +627,7 @@ export async function iniciarPortal() {
   $('categorias').hidden = !(temporada && categorias.length);
   if (temporada) $('t-categorias-temp').textContent = ` ${temporada}`;
   if (temporada && categorias.length) iniciarBuscador(temporada, (c) => `/categorias#${c.ancla}`);
+  mostrar('sede', htmlContacto({ sede: PORTAL.sede }));
   mostrar('club', htmlFoto(PORTAL.foto), 'portal-foto');
   mostrar('sponsors', htmlLogos(PORTAL.sponsors), 'portal-logos');
 

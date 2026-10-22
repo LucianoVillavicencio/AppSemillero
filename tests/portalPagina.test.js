@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   htmlFormularios, htmlAvisoRespaldo, htmlLogos, htmlHeroe, htmlAlias, htmlBuscador, htmlCategoriaDelAnio, htmlProximo,
-  htmlRecaudacion, htmlColaborar, htmlAyuda, htmlCalendario, htmlFoto, diaInicial, htmlSuscripcion,
+  htmlRecaudacion, htmlColaborar, htmlContacto, htmlAyuda, htmlCalendario, htmlFoto, diaInicial, htmlSuscripcion,
 } from '../src/ui/portal.js';
 import { PAGINAS_PORTAL } from '../src/data/portal.js';
 import { eventoDesdeGoogle, eventosPorDia, proximosEventos } from '../src/data/agenda.js';
@@ -17,8 +17,8 @@ const pagina = readFileSync('public/portal.html', 'utf8');
 const portal = readFileSync('src/ui/portal.js', 'utf8');
 const seccion = (id) => pagina.match(new RegExp(`<section [^>]*id="${id}"[\\s\\S]*?</section>`))?.[0] ?? '';
 
-test('el inicio es el resumen de todo: hero, banda, noticias, lo que viene, categorías, recaudación, colaborar, formularios, dudas, club y sponsors', () => {
-  const orden = ['heroe', 'banda', 'noticias', 'proximo', 'categorias', 'recaudacion', 'colaborar', 'formularios', 'dudas', 'club', 'sponsors'];
+test('el inicio es el resumen de todo: hero, banda, noticias, lo que viene, categorías, sede, recaudación, colaborar, formularios, dudas, club y sponsors', () => {
+  const orden = ['heroe', 'banda', 'noticias', 'proximo', 'categorias', 'sede', 'recaudacion', 'colaborar', 'formularios', 'dudas', 'club', 'sponsors'];
   const posiciones = orden.map((id) => pagina.search(new RegExp(`<section [^>]*id="${id}"`)));
   assert.ok(posiciones.every((p) => p > 0), `faltan secciones: ${posiciones}`);
   assert.deepEqual([...posiciones].sort((a, b) => a - b), posiciones, 'las secciones están desordenadas');
@@ -27,7 +27,7 @@ test('el inicio es el resumen de todo: hero, banda, noticias, lo que viene, cate
 });
 
 test('las secciones que dependen de datos arrancan ocultas; la banda, recaudación, colaborar y dudas se ven siempre', () => {
-  for (const id of ['noticias', 'proximo', 'categorias', 'formularios', 'club', 'sponsors']) {
+  for (const id of ['noticias', 'proximo', 'categorias', 'sede', 'formularios', 'club', 'sponsors']) {
     assert.match(seccion(id).split('>')[0], /\bhidden\b/, `#${id} tiene que arrancar oculta`);
   }
   for (const id of ['heroe', 'banda', 'recaudacion', 'colaborar', 'dudas']) {
@@ -44,6 +44,16 @@ test('la banda roja del inicio repite ANOTATE, es decorativa y no se anima', () 
   const reglas = css.split('}').filter((r) => r.includes('portal-cinta'));
   assert.ok(reglas.length > 0, 'falta el estilo de la banda');
   assert.ok(reglas.every((r) => !/animation|transition|@keyframes/.test(r)), 'la banda va quieta: DESIGN.md prohíbe el marquee');
+});
+
+test('la sede del inicio muestra nombre, dirección y Cómo llegar, sin alias; sin sede, nada', () => {
+  const sede = { nombre: 'Estadio <Cubierto>', direccion: 'Parque', mapa: 'https://maps.app.goo.gl/abc' };
+  const out = htmlContacto({ sede }).toString();
+  assert.match(out, /<b>Estadio &lt;Cubierto&gt;<\/b>/);
+  assert.match(out, /Cómo llegar/);
+  assert.doesNotMatch(out, /portal-alias/);
+  assert.equal(htmlContacto({ sede: null }).toString(), '');
+  assert.match(portal, /mostrar\('sede', htmlContacto\(\{ sede: PORTAL\.sede \}\)\)/,'el inicio pinta la sede con los datos de PORTAL.sede');
 });
 
 test('cada resumen lleva a su página', () => {
