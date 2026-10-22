@@ -601,6 +601,11 @@ export async function iniciarPortal() {
     window.location.replace(pagina);
     return;
   }
+  // Pasar de "/" a "/#ayuda" en la misma pestaña es sólo un cambio de hash: no recarga, hay que escucharlo.
+  window.addEventListener('hashchange', () => {
+    const destino = paginaDeAncla(window.location.hash);
+    if (destino) window.location.replace(destino);
+  });
 
   const temporada = temporadaComoAnio(PORTAL.temporada);
   const categorias = categoriasDelPortal(PORTAL.categorias, PORTAL.temporada);

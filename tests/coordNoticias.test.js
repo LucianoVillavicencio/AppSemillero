@@ -78,3 +78,24 @@ test('borrar pide confirmación con el verbo, y la vista previa usa la misma pla
   assert.match(pantalla, /htmlDetalleNoticia\([\s\S]*\{ previa: true \}\)/);
   assert.match(fuente('public/index.html'), /<link rel="stylesheet" href="\/public\/css\/portal\.css">/);
 });
+
+test('mientras guarda se deshabilitan todos los botones de la hoja (un doble toque no crea dos noticias)', () => {
+  const g = cuerpoDe('guardar');
+  assert.match(g, /querySelectorAll\('\.acciones-hoja button'\)/);
+  assert.ok(g.indexOf('deshabilitar(true)') < g.indexOf('subirFotoNoticia('), 'antes de subir nada');
+  assert.ok(g.indexOf('deshabilitar(false)') > g.indexOf('} catch (e) {'), 'se rehabilitan si falla');
+});
+
+test('si el guardado falla por la red, no borra las fotos subidas: quizá la fila ya las nombra', () => {
+  const g = cuerpoDe('guardar');
+  const captura = g.slice(g.indexOf('} catch (e) {'));
+  assert.match(captura, /esErrorDeRed\(e\)/);
+  assert.ok(captura.indexOf('esErrorDeRed(e)') < captura.indexOf('borrarFotosNoticia(subidas)'));
+});
+
+test('al elegir fotos avisa de las que no entran (más de 6) y junta todos los errores', () => {
+  const a = cuerpoDe('agregarFotos');
+  assert.match(a, /MAX_FOTOS/);
+  assert.match(a, /avisos\.push\(/);
+  assert.match(a, /avisos\.join\(/);
+});

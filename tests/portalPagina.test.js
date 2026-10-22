@@ -417,3 +417,9 @@ test('seguir el calendario: Android/compu e iPhone; sin ID válido, nada', () =>
   assert.equal(htmlSuscripcion([{ tipo: 'evento', id: 'roto' }]).toString(), '');
   assert.match(htmlCalendario(estado(), CALS).toString(), /Querés tener todo el calendario en tu celular/);
 });
+
+test('un link viejo también redirige si el inicio ya estaba abierto (cambio de hash sin recarga)', () => {
+  const desde = portal.indexOf('export async function iniciarPortal(');
+  const cuerpo = portal.slice(desde, portal.indexOf('\n}\n', desde));
+  assert.match(cuerpo, /addEventListener\('hashchange'/);
+});

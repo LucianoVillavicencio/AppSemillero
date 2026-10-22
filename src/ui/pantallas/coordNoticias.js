@@ -8,7 +8,7 @@ import {
 import { hoyEnRosario } from '../../data/agenda.js';
 import { LIMITE } from '../../data/limites.js';
 import { obtenerClubActual } from '../sesion.js';
-import { toast } from '../nav.js';
+import { toast, esErrorDeRed } from '../nav.js';
 import { abrirHoja, cerrarHoja } from '../componentes/hoja.js';
 import { confirmarEnHoja } from '../componentes/confirmar.js';
 import { $ } from '../dom.js';
@@ -142,17 +142,22 @@ function pintarFotos() {
 }
 
 async function agregarFotos(input) {
-  const elegidos = [...input.files].slice(0, MAX_FOTOS - fotos.length);
+  const lugar = MAX_FOTOS - fotos.length;
+  const elegidos = [...input.files].slice(0, lugar);
+  const sobran = input.files.length - elegidos.length;
   input.value = '';
   $('not-aviso').innerHTML = '';
+  const avisos = [];
+  if (sobran > 0) avisos.push(`Hasta ${MAX_FOTOS} fotos por noticia: ${sobran === 1 ? 'una quedó afuera' : `${sobran} quedaron afuera`}.`);
   for (const archivo of elegidos) {
     try {
       const blob = await achicarFoto(archivo);
       fotos.push({ blob, url: URL.createObjectURL(blob), alt: '' });
     } catch (e) {
-      mostrarAviso($('not-aviso'), e.message);
+      avisos.push(e.message);
     }
   }
+  if (avisos.length) mostrarAviso($('not-aviso'), avisos.join(' '));
   pintarFotos();
 }
 
@@ -244,7 +249,9 @@ async function guardar(noticia, publicada, boton) {
   // El id de una noticia nueva lo pone el navegador: las fotos se suben a la carpeta de la noticia antes de crear la fila.
   const id = noticia?.id ?? crypto.randomUUID();
   const texto = boton.textContent;
-  boton.disabled = true;
+  // Los tres botones: con sólo el tocado deshabilitado, un segundo toque en el otro guardaba dos veces (dos ids, fotos subidas dos veces).
+  const deshabilitar = (v) => document.querySelectorAll('.acciones-hoja button').forEach((b) => { b.disabled = v; });
+  deshabilitar(true);
   boton.textContent = 'Guardando…';
   const subidas = [];
   try {
@@ -263,9 +270,10 @@ async function guardar(noticia, publicada, boton) {
     await (noticia ? actualizarNoticia(id, datos) : crearNoticia({ id, clubId: club.id, ...datos }));
   } catch (e) {
     // Si no se guardó, las fotos que alcanzaron a subir no quedan sueltas en el bucket.
-    await borrarFotosNoticia(subidas).catch(() => {});
-    mostrarAviso($('not-aviso'), mensajeDeError(e));
-    boton.disabled = false;
+    // Salvo que se haya cortado la red: puede que la fila sí se haya guardado y las nombre, y borrarlas la dejaría con fotos rotas.
+    if (!esErrorDeRed(e)) await borrarFotosNoticia(subidas).catch(() => {});
+    mostrarAviso($('not-aviso'), esErrorDeRed(e) ? 'Se cortó la conexión y no sabemos si se guardó. Cerrá esta hoja y mirá la lista antes de volver a intentar.' : mensajeDeError(e));
+    deshabilitar(false);
     boton.textContent = texto;
     return;
   }
