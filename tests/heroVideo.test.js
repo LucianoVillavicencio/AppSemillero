@@ -47,3 +47,15 @@ test('debeCargarVideo es true sin restricciones, aunque el navegador no diga la 
   assert.equal(debeCargarVideo({ movimientoReducido: false, ahorroDeDatos: false, conexion: '4g' }), true);
   assert.equal(debeCargarVideo({}), true);
 });
+
+test('los archivos de PORTAL.heroVideo existen, son válidos y pesan lo permitido', async () => {
+  const { existsSync, statSync } = await import('node:fs');
+  const { PORTAL } = await import('../src/data/portal.js');
+  const v = heroVideoValido(PORTAL.heroVideo);
+  assert.ok(v, 'PORTAL.heroVideo no pasa heroVideoValido');
+  const disco = (ruta) => new URL(`..${ruta}`, import.meta.url);
+  assert.ok(existsSync(disco(v.src)), `falta ${v.src}`);
+  assert.ok(existsSync(disco(v.poster)), `falta ${v.poster}`);
+  assert.ok(statSync(disco(v.src)).size <= 4 * 1024 * 1024, 'el video pesa más de 4 MB');
+  assert.ok(statSync(disco(v.poster)).size <= 150 * 1024, 'el poster pesa más de 150 KB');
+});

@@ -87,7 +87,14 @@ export const PORTAL = Object.freeze({
 
   // Video de fondo del hero del inicio: { src, poster, alt } con archivos de
   // public/portal/ (ver heroVideoValido). Sin video, el hero queda rojo y negro.
-  heroVideo: null,
+  // PENDIENTE: por ahora es un placeholder, el video del hero del sitio oficial
+  // del club (newellsoldboys.com.ar). Reemplazarlo por material propio, o tener
+  // el OK del club por escrito, antes de publicar (docs/SEGURIDAD-LANZAMIENTO.md).
+  heroVideo: Object.freeze({
+    src: '/public/portal/hero-placeholder.mp4',
+    poster: '/public/portal/hero-placeholder.jpg',
+    alt: 'Vista del estadio con la hinchada y una bandera enorme',
+  }),
 
   // Logos de sponsors y colaboradores, para la sección "Sumate como sponsor".
   // Cada uno: { nombre, logo: '/public/sponsors/archivo.png', enlace?: 'https://…' }.

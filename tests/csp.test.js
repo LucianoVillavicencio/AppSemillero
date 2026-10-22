@@ -72,8 +72,8 @@ test('connect-src llega al proyecto de Supabase que usa la app', () => {
 // El marcador de salto reproduce el video elegido como objectURL. Sin
 // media-src rige default-src 'self', que bloquea blob:, y el video queda en
 // negro sólo en producción.
-test('media-src deja reproducir el video local del marcador y nada más', () => {
-  assert.deepEqual(directiva('media-src'), ['blob:']);
+test('media-src deja reproducir el video del marcador (blob:) y el del hero del portal (\'self\'), y nada más', () => {
+  assert.deepEqual(directiva('media-src'), ['\'self\'', 'blob:']);
 });
 
 // Si el navegador guarda el HTML, lo revalida con el ETag, y el 304 de Vercel
