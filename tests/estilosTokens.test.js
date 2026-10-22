@@ -156,13 +156,14 @@ test('los keyframes sólo definen "from": con reduced-motion el estado final que
   assert.deepEqual(malos, []);
 });
 
-test('sólo publico.css tiene una animación infinite, y es una sola', () => {
+test('sólo publico.css (el anillo) y portal.css (la cinta) tienen una animación infinite, una cada uno', () => {
   // Excepción de DESIGN.md: el giro del anillo del escudo. Cualquier otra
   // animación continua es decorado que cuesta batería en gama baja.
   const cuenta = (n) => (sinComentarios(css[n]).match(/\binfinite\b/g) ?? []).length;
-  const otros = ARCHIVOS.filter((n) => n !== 'publico' && cuenta(n) > 0);
+  const otros = ARCHIVOS.filter((n) => n !== 'publico' && n !== 'portal' && cuenta(n) > 0);
   assert.deepEqual(otros, []);
   assert.ok(cuenta('publico') <= 1, `publico.css tiene ${cuenta('publico')} infinite`);
+  assert.ok(cuenta('portal') <= 1, `portal.css tiene ${cuenta('portal')} infinite`);
 });
 
 test('el texto de la landing llega a 4.5:1 sobre su tarjeta y su fondo', () => {

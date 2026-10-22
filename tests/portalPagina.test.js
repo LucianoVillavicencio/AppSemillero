@@ -36,14 +36,15 @@ test('las secciones que dependen de datos arrancan ocultas; la banda, recaudaci�
   }
 });
 
-test('la banda roja del inicio repite ANOTATE, es decorativa y no se anima', () => {
+test('la banda roja del inicio repite ANOTATE, es decorativa y corre sin tocar más que transform', () => {
   const banda = seccion('banda');
   assert.match(banda.split('>')[0], /aria-hidden="true"/, 'es decoración: el lector de pantalla la salta');
   assert.ok((banda.match(/ANOTATE/g) ?? []).length >= 8, 'el texto se repite para llenar el ancho');
   const css = readFileSync('public/css/portal.css', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
   const reglas = css.split('}').filter((r) => r.includes('portal-cinta'));
   assert.ok(reglas.length > 0, 'falta el estilo de la banda');
-  assert.ok(reglas.every((r) => !/animation|transition|@keyframes/.test(r)), 'la banda va quieta: DESIGN.md prohíbe el marquee');
+  assert.ok(reglas.every((r) => !/transition/.test(r)), 'la banda corre por animation, sin transition');
+  assert.match(css, /@keyframes cinta\s*\{\s*from\s*\{\s*transform:[^}]*\}\s*\}/, 'el keyframe sólo mueve transform y sólo define from');
 });
 
 test('la sede del inicio muestra nombre, dirección y Cómo llegar, sin alias; sin sede, nada', () => {
