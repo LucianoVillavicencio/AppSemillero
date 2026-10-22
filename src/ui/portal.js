@@ -66,8 +66,8 @@ function accion({ clase, icono, titulo, detalle, url, cerrado }) {
 }
 
 /**
- * El hero: la banda roja y negra (la camiseta) con el título de la página y,
- * adentro, las dos tarjetas protagonistas. La primera es "Inscribir a mi hijo
+ * El hero: el título de la página y,
+ * abajo, las dos acciones protagonistas. La primera es "Inscribir a mi hijo
  * o hija" si el formulario de inscripción está activo (destino inscripcion,
  * 0062) y, si no, "Quiero jugar en Newell's" (destino consultas, 0061). La
  * segunda, "Enviar comprobante" (destino comprobante), con el alias pegado
@@ -80,7 +80,7 @@ export function htmlHeroe({ inscripcion = null, consultas = null, comprobante = 
     : accion({ clase: 'principal', icono: 'jugar', titulo: 'Quiero jugar en Newell\'s', url: p.url,
       detalle: 'Dejá tus datos y te contactamos para venir a probar', cerrado: 'Se habilita cuando abra el formulario' });
   return html`<div class="portal-heroe-ey">Formativas · Rosario${temporada ? html` · Temporada ${temporada}` : ''}</div>
-    <h1>Básquet formativo de Newell's</h1>
+    <h1><span>Básquet</span> <em>formativo</em> <span>de Newell's</span></h1>
     <p class="portal-heroe-bajada">Inscripción, pagos, calendario y todo lo del básquet del club, en un solo lugar.</p>
     <div class="portal-acciones">
       ${primera}
@@ -596,11 +596,10 @@ function pintarFormularios({ inscripcion = null, comprobante = null, consultas =
   $('portal-colaborar').innerHTML = htmlColaborar(colaboradores);
 }
 
-/** Con un video válido, el hero lo muestra; sin uno, vuelve al rojo y negro (el HTML arranca con las clases puestas para evitar el salto). */
+/** Con un video válido, el hero lo muestra a la derecha; sin uno, queda sólo el texto (el HTML arranca con la clase puesta para evitar el salto). */
 function iniciarFondoDelHero() {
   const video = heroVideoValido(PORTAL.heroVideo);
   if (!video) {
-    $('publico').classList.remove('con-hero');
     $('heroe').classList.remove('con-fondo');
     return;
   }

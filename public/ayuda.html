@@ -46,6 +46,10 @@
 <body>
 
 <div class="publico portal-d" id="publico">
+  <!-- Las dos acciones que más usan las familias, siempre a la vista: fija abajo
+       en el celular, una franja arriba de todo en compu (portal.css). La pinta
+       src/ui/portalMarco.js cuando responde la base. -->
+  <div class="portal-acc-barra" id="portal-acc-barra" hidden></div>
   <header class="portal-barra">
     <a class="portal-logo" href="/">
       <img src="/public/escudo.png" alt="" width="36" height="36">
@@ -70,10 +74,6 @@
     <nav class="portal-nav" aria-label="Páginas del básquet"><a href="/">Inicio</a><a href="/noticias">Noticias</a><a href="/categorias">Categorías</a><a href="/calendario">Calendario</a><a href="/ayuda">Ayuda</a></nav>
   </header>
 
-  <!-- Las dos acciones que más usan las familias, siempre a la vista: fija
-       abajo en el celular, pegada arriba en compu (portal.css). La pinta
-       src/ui/portalMarco.js cuando responde la base. -->
-  <div class="portal-acc-barra" id="portal-acc-barra" hidden></div>
 
   <main class="portal">
     <section class="portal-sec" id="preguntas" aria-labelledby="t-ayuda">

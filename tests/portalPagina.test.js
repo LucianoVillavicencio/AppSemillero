@@ -36,14 +36,22 @@ test('las secciones que dependen de datos arrancan ocultas; la banda, recaudaci�
   }
 });
 
-test('la banda roja del inicio repite ANOTATE, es decorativa y corre sin tocar más que transform', () => {
-  const banda = seccion('banda');
-  assert.match(banda.split('>')[0], /aria-hidden="true"/, 'es decoración: el lector de pantalla la salta');
-  assert.ok((banda.match(/ANOTATE/g) ?? []).length >= 8, 'el texto se repite para llenar el ancho');
+test('la cinta del inicio lista lo que ofrece el portal dos veces (la copia, aria-hidden) y corre sin tocar más que transform', () => {
+  const cinta = seccion('banda');
+  assert.match(cinta.split('>')[0], /aria-label="[^"]+"/, 'tiene nombre para el lector de pantalla');
+  const listas = [...cinta.matchAll(/<ul( aria-hidden="true")?>([\s\S]*?)<\/ul>/g)];
+  assert.equal(listas.length, 2, 'la lista va dos veces para que el loop no se note');
+  assert.equal(listas[0][1], undefined, 'la primera la lee el lector de pantalla');
+  assert.equal(listas[1][1], ' aria-hidden="true"', 'la copia no se lee dos veces');
+  assert.equal(listas[0][2], listas[1][2], 'las dos son iguales');
+  assert.ok((listas[0][2].match(/<li>/g) ?? []).length >= 5);
+  for (const [, , cuerpo] of listas) {
+    for (const id of cuerpo.matchAll(/<use href="#([^"]+)"/g)) assert.match(pagina, new RegExp(`<symbol id="${id[1]}"`), `falta el ícono ${id[1]}`);
+  }
   const css = readFileSync('public/css/portal.css', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
   const reglas = css.split('}').filter((r) => r.includes('portal-cinta'));
-  assert.ok(reglas.length > 0, 'falta el estilo de la banda');
-  assert.ok(reglas.every((r) => !/transition/.test(r)), 'la banda corre por animation, sin transition');
+  assert.ok(reglas.length > 0, 'falta el estilo de la cinta');
+  assert.ok(reglas.every((r) => !/transition/.test(r)), 'la cinta corre por animation, sin transition');
   assert.match(css, /@keyframes cinta\s*\{\s*from\s*\{\s*transform:[^}]*\}\s*\}/, 'el keyframe sólo mueve transform y sólo define from');
 });
 
@@ -155,7 +163,7 @@ const acciones = (out) => out.match(/class="portal-accion [^"]*"/g) ?? [];
 test('el hero es el título de la página, no una pregunta', () => {
   const out = htmlHeroe({ temporada: 2027 }).toString();
   assert.match(out, /<div class="portal-heroe-ey">Formativas · Rosario · Temporada 2027<\/div>/);
-  assert.match(out, /<h1>Básquet formativo de Newell's<\/h1>/);
+  assert.match(out, /<h1><span>Básquet<\/span> <em>formativo<\/em> <span>de Newell's<\/span><\/h1>/);
   assert.match(out, /<p class="portal-heroe-bajada">/);
   assert.doesNotMatch(out, /¿Qué (necesitás|querés) hacer\?/);
 });
@@ -444,14 +452,4 @@ test('un link viejo también redirige si el inicio ya estaba abierto (cambio de 
   const desde = portal.indexOf('export async function iniciarPortal(');
   const cuerpo = portal.slice(desde, portal.indexOf('\n}\n', desde));
   assert.match(cuerpo, /addEventListener\('hashchange'/);
-});
-
-test('el "Lo que viene" agrandado del inicio no cambia el de /calendario: sus reglas cuelgan de #proximo y usan tokens', () => {
-  const css = readFileSync('public/css/portal.css', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
-  const reglas = css.split('}').map((r) => r.trim()).filter((r) => /portal-prox-(fecha b|t)\b/.test(r.split('{')[0]));
-  assert.ok(reglas.length > 0, 'falta el estilo del bloque');
-  for (const r of reglas) {
-    assert.match(r, /^#proximo /, `sin #proximo se cuela en /calendario: ${r}`);
-    assert.doesNotMatch(r, /font-size:\s*[\d.]+rem/, `el tamaño de letra sale de un token: ${r}`);
-  }
 });

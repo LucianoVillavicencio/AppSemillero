@@ -255,17 +255,20 @@ Presupuesto de la rama: ninguna regresión contra la medición previa, con toler
 
 ## Portal multipágina (spec 2026-10-21)
 
-- **Ritmo de lo público:** el portal de las familias deja de ser sólo oscuro y alterna, como el sitio del club, **negro** (hero, encabezado, pie), **papel** (`.portal-papel`: noticias y el detalle de categorías) y **rojo** (`.portal-banda`). La landing y la autenticación de `/app` siguen oscuras.
+- **Ritmo de lo público:** ver "Estilo gimnasio" más abajo (reemplaza al negro/papel/rojo de esta primera versión). La landing y la autenticación de `/app` siguen como estaban.
 - **Archivos:** lo nuevo vive en `public/css/portal.css`. Las reglas `.portal-*` anteriores siguen en `publico.css`. Los cortes de ancho están en `layout.css`.
 - **Barra de acciones (`.portal-acc-barra`):** las dos acciones principales. En el celular va fija abajo y entra subiendo (`portal-sube`, sólo `transform`). En compu va pegada arriba. En el inicio se esconde mientras se ven las tarjetas del hero (`.escondida`) y después flota (`.flotante`). Sin formularios abiertos, no aparece.
 - **Tarjeta de noticia (`.portal-not`):** foto 16:10, etiqueta roja, título condensado, fecha en mono y "LEER →". La etiqueta es `--sobre-club` sobre `--primario` (4.5:1, lo mide `estilosTokens`).
 - **Lo que no se copió del sitio del club, a propósito:** la cuenta regresiva por segundo y los contadores animados. Son animaciones continuas, que este documento prohíbe (ver Reglas duras).
 
-## Home inmersiva del portal (spec 2026-10-21-portal-home-inmersiva)
+## Estilo gimnasio del portal
 
-- **Hero a pantalla completa (`.portal-heroe.con-fondo`):** poster `<img>` + `<video>` de fondo (`PORTAL.heroVideo`, `src/ui/portalHeroVideo.js`) con un velo de `--pub-fondo` que cierra arriba y abajo para el contraste del blanco. Sin `heroVideo` válido, `portal.js` saca `con-hero` y `con-fondo` y el hero vuelve a ser rojo y negro. El texto y los botones no esperan al video.
-- **Excepción acotada a "animaciones continuas":** el video es movimiento continuo. Condiciones, todas verificadas por tests: `muted`, `playsinline`, `preload="none"` y sin `src` hasta decidir (`debeCargarVideo`); no se baja con `prefers-reduced-motion`, `saveData` ni conexión `2g`; se pausa fuera de pantalla (IntersectionObserver); si falla, se saca y queda el poster. Entra con un fundido de `opacity`. No suma ninguna `@keyframes` ni `infinite`.
-- **Banda roja (`.portal-cinta`):** "ANOTATE" repetido, `aria-hidden`, que corre como la cinta del sitio del club. Excepción acotada a "animaciones continuas": una sola `infinite` (en `portal.css`), sólo `transform`, keyframe con `from` (con `prefers-reduced-motion` queda quieta y llena).
-- **Encabezado:** transparente sobre el hero y `position:absolute` (se va con el hero). No es fijo a propósito: chocaría con la barra de acciones, que sí flota.
-- **Noticias del inicio:** 4, la primera destacada (`.portal-destacadas`, en compu ocupa todo el ancho con la foto a la izquierda). `/noticias` no cambia.
-- **Qué no se copió de la home del club:** cifras ("123 años", "titulos"), línea de tiempo de historia, plan de socios con precios y cuenta regresiva. No hay datos nuestros para eso y no se inventan.
+Reemplaza al ritmo negro/papel/rojo y a la home inmersiva. El portal copia el diseño del home de un sitio de gimnasio de referencia (React + Tailwind), en nuestro rojo y sin cambiar de stack.
+
+- **Paleta:** negro casi puro (`--pf-fondo`), tarjetas `--pf-sup`, bordes `--pf-borde`, y las secciones pares con un tinte del club (`--pf-alt`, clase `.alt`). Todo vive en `tokens.css`: `.portal-d` redefine `--pub-*`, `--gris-osc`, `--r` (1.5rem), `--r-btn` (píldora) y `--ff-titulo` (Poppins), así lo que ya usaba esos tokens cambió sin tocarlo. Las secciones que eran "papel" invierten sus neutros en `.portal-d .portal-papel`.
+- **Tipografía:** títulos en Poppins (600/700/800, `public/fonts/`, mismo criterio que las otras fuentes: propias, sin Google Fonts); cuerpo en Inter. El texto en rojo sobre negro usa `--pf-pill-texto` (el rojo del club solo no llega a 4.5:1).
+- **Encabezado:** pegado arriba (`position:sticky`) con vidrio; en compu, marca, navegación al centro y "Soy profe o jugador" a la derecha. La barra de acciones (`.portal-acc-barra`) es el aviso: una franja arriba de todo en compu, fija abajo en el celular.
+- **Hero partido:** texto a la izquierda y video a la derecha cortado en diagonal (`clip-path`), como tarjeta debajo del texto en el celular. Las dos acciones son píldoras (roja y de contorno). Sin `PORTAL.heroVideo` válido, `portal.js` saca `con-fondo` y queda sólo el texto. Las condiciones del video siguen siendo las de la home anterior (muted, `preload="none"`, sin movimiento reducido ni ahorro de datos, pausa fuera de pantalla).
+- **Cinta (`.portal-cinta`):** lo que ofrece el portal, con íconos de un sprite inline; sólo cosas que el portal tiene. Es la única `infinite` de `portal.css`, sólo `transform`, keyframe con `from`.
+- **Secciones:** franjas a todo el ancho con el contenido a 76 rem (`--lado`), pastilla (`.portal-st`), título centrado, tarjetas redondeadas que suben 6 px al pasar el mouse (`transform` + borde del club en un `::after` que sólo cambia de `opacity`).
+- **Qué se descartó:** la banda ANOTATE, la noticia destacada grande y el "Lo que viene" agrandado. Tampoco se copió del sitio de referencia lo que no tenemos (precios, profesores, cuenta de pases gratis).

@@ -99,7 +99,7 @@ test('las fuentes se sirven desde el propio dominio, sin Google Fonts', () => {
   assert.doesNotMatch(html, /fonts\.(googleapis|gstatic)\.com/);
   const tokens = readFileSync(path.join(raiz, 'public', 'css', 'tokens.css'), 'utf8');
   const archivos = [...tokens.matchAll(/url\((\/public\/fonts\/[^)]+)\)/g)].map((m) => m[1]);
-  assert.equal(archivos.length, 10);
+  assert.equal(archivos.length, 13);
   for (const ruta of archivos) assert.ok(existsSync(path.join(raiz, ruta)), `falta ${ruta}`);
 });
 
