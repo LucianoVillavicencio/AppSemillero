@@ -168,7 +168,6 @@
 .portal-contacto-sede .btn{text-decoration:none}
 .portal-contacto .portal-alias{margin:0}
 .portal-sede .portal-contacto-sede{max-width:30rem;margin-inline:auto;width:100%;text-align:left}
-#portal-sede{display:flex;justify-content:center}
 
 /* ---- inicio: franja "¿Dudas?" ---- */
 .portal-dudas{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--sp-4);padding:var(--sp-6);background:var(--pub-tarjeta);border:1px solid var(--pub-borde);border-radius:var(--r)}
