@@ -85,6 +85,10 @@ export const PORTAL = Object.freeze({
   // PENDIENTE: { src: '/public/portal/club.jpg', alt: 'qué se ve en la foto', epigrafe?: '…' }.
   foto: null,
 
+  // Video de fondo del hero del inicio: { src, poster, alt } con archivos de
+  // public/portal/ (ver heroVideoValido). Sin video, el hero queda rojo y negro.
+  heroVideo: null,
+
   // Logos de sponsors y colaboradores, para la sección "Sumate como sponsor".
   // Cada uno: { nombre, logo: '/public/sponsors/archivo.png', enlace?: 'https://…' }.
   // El archivo va en public/sponsors/ (png, jpg, webp o svg). Un archivo que no
