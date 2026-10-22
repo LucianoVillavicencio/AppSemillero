@@ -82,7 +82,7 @@ test('un ?n= que no es un uuid no consulta la base', () => {
 test('en el inicio, si la base falla (o no tiene 0064), la sección queda oculta y no se rompe nada', () => {
   const desde = modulo.indexOf('export async function iniciarUltimasNoticias(');
   const cuerpo = modulo.slice(desde, modulo.indexOf('\n}\n', desde));
-  assert.match(cuerpo, /try \{[\s\S]*noticiasPublicas\(PORTAL\.clubId, \{ limite: 3 \}\)[\s\S]*\$\('noticias'\)\.hidden = !contenido;[\s\S]*\} catch \{/);
+  assert.match(cuerpo, /try \{[\s\S]*noticiasPublicas\(PORTAL\.clubId, \{ limite: 4 \}\)[\s\S]*\$\('noticias'\)\.hidden = !contenido;[\s\S]*\} catch \{/);
   const portal = leer('src/ui/portal.js');
   const inicio = portal.slice(portal.indexOf('export async function iniciarPortal('));
   assert.ok(inicio.indexOf('iniciarUltimasNoticias()') > inicio.indexOf('destinoDeAuth('), 'después de la guarda de login');

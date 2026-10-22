@@ -17,8 +17,8 @@ const pagina = readFileSync('public/portal.html', 'utf8');
 const portal = readFileSync('src/ui/portal.js', 'utf8');
 const seccion = (id) => pagina.match(new RegExp(`<section [^>]*id="${id}"[\\s\\S]*?</section>`))?.[0] ?? '';
 
-test('el inicio es el resumen de todo: hero, noticias, lo que viene, categorías, recaudación, colaborar, formularios, dudas, club y sponsors', () => {
-  const orden = ['heroe', 'noticias', 'proximo', 'categorias', 'recaudacion', 'colaborar', 'formularios', 'dudas', 'club', 'sponsors'];
+test('el inicio es el resumen de todo: hero, banda, noticias, lo que viene, categorías, recaudación, colaborar, formularios, dudas, club y sponsors', () => {
+  const orden = ['heroe', 'banda', 'noticias', 'proximo', 'categorias', 'recaudacion', 'colaborar', 'formularios', 'dudas', 'club', 'sponsors'];
   const posiciones = orden.map((id) => pagina.search(new RegExp(`<section [^>]*id="${id}"`)));
   assert.ok(posiciones.every((p) => p > 0), `faltan secciones: ${posiciones}`);
   assert.deepEqual([...posiciones].sort((a, b) => a - b), posiciones, 'las secciones están desordenadas');
@@ -30,9 +30,20 @@ test('las secciones que dependen de datos arrancan ocultas; la banda, recaudaci�
   for (const id of ['noticias', 'proximo', 'categorias', 'formularios', 'club', 'sponsors']) {
     assert.match(seccion(id).split('>')[0], /\bhidden\b/, `#${id} tiene que arrancar oculta`);
   }
-  for (const id of ['heroe', 'recaudacion', 'colaborar', 'dudas']) {
-    assert.doesNotMatch(seccion(id).split('>')[0], /\bhidden\b/, `#${id} se ve siempre`);
+  for (const id of ['heroe', 'banda', 'recaudacion', 'colaborar', 'dudas']) {
+    // aria-hidden (la banda decorativa) no es el atributo hidden.
+    assert.doesNotMatch(seccion(id).split('>')[0], /(?<!aria-)\bhidden\b/, `#${id} se ve siempre`);
   }
+});
+
+test('la banda roja del inicio repite ANOTATE, es decorativa y no se anima', () => {
+  const banda = seccion('banda');
+  assert.match(banda.split('>')[0], /aria-hidden="true"/, 'es decoración: el lector de pantalla la salta');
+  assert.ok((banda.match(/ANOTATE/g) ?? []).length >= 8, 'el texto se repite para llenar el ancho');
+  const css = readFileSync('public/css/portal.css', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  const reglas = css.split('}').filter((r) => r.includes('portal-cinta'));
+  assert.ok(reglas.length > 0, 'falta el estilo de la banda');
+  assert.ok(reglas.every((r) => !/animation|transition|@keyframes/.test(r)), 'la banda va quieta: DESIGN.md prohíbe el marquee');
 });
 
 test('cada resumen lleva a su página', () => {

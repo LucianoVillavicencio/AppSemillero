@@ -42,7 +42,8 @@
 **Tests (`tests/portalHeroVideo.test.js`):** `htmlFondoHero sin video devuelve vacío`, `…pone poster y data-src y no src`, `…escapa el alt`, `iniciarVideoHero no asigna src con movimiento reducido`, `…quita el video si falla`, `…no revienta sin IntersectionObserver`. Actualizar `tests/portalPagina.test.js` si el hero cambia de marcado.
 **Commit:** `feat(portal): hero a pantalla completa con video de fondo`
 
-### Task 4: Encabezado transparente sobre el hero
+### Task 4: Encabezado transparente sobre el hero — DESCARTADA (ruling de la ejecución)
+> El encabezado ya quedó transparente y flotando sobre el hero en la Task 3 (`position:absolute`, se va con el hero, como el encabezado de antes). Volverlo fijo y negro al scrollear choca con la barra de acciones, que en compu flota fija arriba (`top:0`) y es lo que las familias más usan; y en el celular suma una fila fija de ~90 px. Costo si es un error: falta el encabezado sólido al scrollear, que nunca existió. Lo de abajo queda como referencia.
 **Files:** Modify `src/ui/portalMarco.js` (`iniciarEncabezadoSobreHero(hero)`, sólo si `#publico.con-hero`), `public/css/portal.css`, `public/css/layout.css`.
 **Aceptación:** sobre el hero el encabezado es transparente y pasa a negro cuando el hero sale de pantalla (clase `solido`, sin leer scroll); sin IntersectionObserver queda negro desde el inicio; el HTML del encabezado sigue idéntico en las cinco páginas (`paginasPortal.test.js` lo comprueba).
 **Tests (`tests/portalMarco.test.js`):** `el encabezado arranca solido sin IntersectionObserver`, `queda transparente mientras se ve el hero`.

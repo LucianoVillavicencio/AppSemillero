@@ -519,5 +519,13 @@
   .publico .con-fondo h1{max-width:34rem}
 }
 @media (min-width:64rem){
-  .publico.con-hero .portal > :not(.portal-heroe){max-width:64rem;margin-inline:auto}
+  .publico.con-hero .portal > :not(.portal-heroe):not(.portal-cinta){max-width:64rem;margin-inline:auto}
+}
+
+/* Inicio: la primera noticia ocupa todo el ancho, con la foto a la izquierda, y las otras tres debajo. */
+@media (min-width:40rem){
+  .publico .portal-destacadas .portal-not:first-child{grid-column:1 / -1}
+  .publico .portal-destacadas .portal-not:first-child a{flex-direction:row}
+  .publico .portal-destacadas .portal-not:first-child img{width:55%;aspect-ratio:auto;min-height:16rem}
+  .publico .portal-destacadas .portal-not:first-child h3{font-size:var(--fs-300)}
 }

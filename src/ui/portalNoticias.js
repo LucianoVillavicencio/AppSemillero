@@ -68,10 +68,10 @@ export const htmlSinNoticias = () => html`<p class="portal-not-nada">Todavía no
 
 export const htmlErrorNoticias = () => html`<p class="portal-not-nada">No pudimos traer las noticias. Probá de nuevo en un rato.</p>`;
 
-/** Inicio: las últimas 3. Sin noticias, sin red o sin 0064 en la base, la sección queda oculta. */
+/** Inicio: las últimas 4 (la primera va destacada, ver portal.css). Sin noticias, sin red o sin 0064 en la base, la sección queda oculta. */
 export async function iniciarUltimasNoticias() {
   try {
-    const lista = await noticiasPublicas(PORTAL.clubId, { limite: 3 });
+    const lista = await noticiasPublicas(PORTAL.clubId, { limite: 4 });
     const contenido = htmlListaNoticias(lista, window.SUPABASE_URL).toString();
     $('portal-noticias').innerHTML = contenido;
     $('noticias').hidden = !contenido;

@@ -168,3 +168,13 @@
 .con-fondo .portal-heroe-ey::before{content:"";width:.5rem;height:.5rem;background:var(--primario);flex:0 0 auto}
 .con-fondo h1{font-size:clamp(2.5rem,2rem + 4vw,5rem);line-height:.9;max-width:20rem}
 .con-fondo .portal-heroe-bajada{max-width:22rem}
+
+/* ---- inicio: banda roja de letras grandes (la del sitio del club, pero quieta) y noticia destacada ---- */
+.portal-cinta{
+  display:flex;align-items:center;gap:var(--sp-6);overflow:hidden;white-space:nowrap;padding:var(--sp-3) 0;
+  background:var(--primario);color:var(--sobre-club);
+  font-family:var(--ff-titulo);font-weight:700;font-size:var(--fs-230);letter-spacing:.14em;text-transform:uppercase
+}
+.portal-cinta span{flex:0 0 auto}
+/* La primera noticia del inicio es la grande; en el celular todas van en una columna y se nota por el título. */
+.portal-destacadas .portal-not:first-child h3{font-size:var(--fs-260)}
